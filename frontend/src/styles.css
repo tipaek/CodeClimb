@@ -1,0 +1,9 @@
+body { font-family: sans-serif; margin: 0; }
+.page { padding: 16px; }
+.layout { display: flex; gap: 16px; }
+aside { min-width: 220px; }
+input { margin: 2px; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+th, td { border: 1px solid #ddd; padding: 4px; vertical-align: top; }
+.error { color: #b91c1c; }
+button.active { font-weight: bold; }
