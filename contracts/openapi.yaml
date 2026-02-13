@@ -1,118 +1,317 @@
 openapi: 3.0.3
 info:
   title: CodeClimb API
-  version: 0.1.0
-  description: Initial contract-first stub for frontend/backend integration.
+  version: 1.0.0
 servers:
   - url: http://localhost:8080
+security:
+  - bearerAuth: []
 paths:
-  /api/auth/login:
+  /auth/signup:
     post:
-      summary: Log a user in
+      security: []
+      summary: Create an account
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              type: object
-              required: [email, password]
-              properties:
-                email:
-                  type: string
-                  format: email
-                password:
-                  type: string
+              $ref: '#/components/schemas/SignupRequest'
+      responses:
+        '200':
+          description: Signup success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /auth/login:
+    post:
+      security: []
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
           description: Login success
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  accessToken:
-                    type: string
-                  expiresInSeconds:
-                    type: integer
-        '401':
-          description: Invalid credentials
-
-  /api/lists:
-    get:
-      summary: Fetch user lists
+                $ref: '#/components/schemas/AuthResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /lists:
+    post:
+      summary: Create list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateListRequest'
       responses:
         '200':
-          description: List summary collection
+          description: Created list
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  items:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: string
-                        title:
-                          type: string
-                        progress:
-                          type: number
-    post:
-      summary: Create a list
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [title]
-              properties:
-                title:
-                  type: string
-      responses:
-        '201':
-          description: List created
-
-  /api/attempts:
-    post:
-      summary: Record a coding attempt
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [listId, challengeId, status]
-              properties:
-                listId:
-                  type: string
-                challengeId:
-                  type: string
-                status:
-                  type: string
-                  enum: [started, completed, skipped]
-                durationSeconds:
-                  type: integer
-      responses:
-        '201':
-          description: Attempt accepted
-
-  /api/dashboard:
+                $ref: '#/components/schemas/List'
     get:
-      summary: Retrieve dashboard metrics
+      summary: Get user lists
+      responses:
+        '200':
+          description: User lists
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/List'
+  /lists/{id}:
+    patch:
+      summary: Rename list
+      parameters:
+        - $ref: '#/components/parameters/ListId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenameListRequest'
+      responses:
+        '200':
+          description: Renamed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/List'
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /lists/{id}/deprecate:
+    post:
+      summary: Deprecate list
+      parameters:
+        - $ref: '#/components/parameters/ListId'
+      responses:
+        '200':
+          description: Deprecated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/List'
+  /lists/{listId}/problems/{neetId}/attempts:
+    post:
+      summary: Create attempt entry
+      parameters:
+        - $ref: '#/components/parameters/ListIdPath'
+        - $ref: '#/components/parameters/NeetId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertAttemptRequest'
+      responses:
+        '200':
+          description: Attempt created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attempt'
+        '400': { $ref: '#/components/responses/BadRequest' }
+    get:
+      summary: Get attempt history newest first
+      parameters:
+        - $ref: '#/components/parameters/ListIdPath'
+        - $ref: '#/components/parameters/NeetId'
+      responses:
+        '200':
+          description: Attempts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Attempt'
+  /attempts/{attemptId}:
+    patch:
+      summary: Edit attempt
+      parameters:
+        - $ref: '#/components/parameters/AttemptId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertAttemptRequest'
+      responses:
+        '200':
+          description: Updated attempt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attempt'
+        '400': { $ref: '#/components/responses/BadRequest' }
+    delete:
+      summary: Delete attempt
+      parameters:
+        - $ref: '#/components/parameters/AttemptId'
+      responses:
+        '200':
+          description: Deleted
+  /lists/{listId}/problems:
+    get:
+      summary: Get list problems with latest attempt for each problem
+      parameters:
+        - $ref: '#/components/parameters/ListIdPath'
+      responses:
+        '200':
+          description: Problem rows with latest attempt
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProblemWithLatestAttempt'
+  /dashboard:
+    get:
+      summary: Dashboard summary for current user
       responses:
         '200':
           description: Dashboard data
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  streakDays:
-                    type: integer
-                  solvedCount:
-                    type: integer
-                  activeListCount:
-                    type: integer
+                $ref: '#/components/schemas/Dashboard'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ListId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ListIdPath:
+      name: listId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    NeetId:
+      name: neetId
+      in: path
+      required: true
+      schema: { type: integer }
+    AttemptId:
+      name: attemptId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    SignupRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+        timezone: { type: string, default: America/Chicago }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    AuthResponse:
+      type: object
+      properties:
+        accessToken: { type: string }
+        expiresInSeconds: { type: integer }
+        userId: { type: string, format: uuid }
+        email: { type: string, format: email }
+        timezone: { type: string }
+    CreateListRequest:
+      type: object
+      required: [name, templateVersion]
+      properties:
+        name: { type: string }
+        templateVersion: { type: string }
+    RenameListRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string }
+    List:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        templateVersion: { type: string }
+        deprecated: { type: boolean }
+    UpsertAttemptRequest:
+      type: object
+      description: Must include at least one non-empty meaningful field among solved/dateSolved/timeMinutes/notes/problemUrl.
+      properties:
+        solved: { type: boolean }
+        dateSolved: { type: string, format: date }
+        timeMinutes: { type: integer }
+        notes: { type: string }
+        problemUrl: { type: string }
+    Attempt:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        listId: { type: string, format: uuid }
+        neet250Id: { type: integer }
+        solved: { type: boolean, nullable: true }
+        dateSolved: { type: string, format: date, nullable: true }
+        timeMinutes: { type: integer, nullable: true }
+        notes: { type: string, nullable: true }
+        problemUrl: { type: string, nullable: true }
+        updatedAt: { type: string, format: date-time }
+    ProblemWithLatestAttempt:
+      type: object
+      properties:
+        neet250Id: { type: integer }
+        title: { type: string }
+        category: { type: string }
+        orderIndex: { type: integer }
+        solved: { type: boolean, nullable: true }
+        dateSolved: { type: string, format: date, nullable: true }
+        timeMinutes: { type: integer, nullable: true }
+        notes: { type: string, nullable: true }
+        problemUrl: { type: string, nullable: true }
+        attemptUpdatedAt: { type: string, format: date-time, nullable: true }
+    CategoryStats:
+      type: object
+      properties:
+        category: { type: string }
+        solvedCount: { type: integer }
+        avgTimeMinutes: { type: number, format: double, nullable: true }
+    Dashboard:
+      type: object
+      properties:
+        latestListId: { type: string, format: uuid, nullable: true }
+        lastActivityAt: { type: string, format: date-time, nullable: true }
+        streakCurrent: { type: integer }
+        farthestCategory: { type: string, nullable: true }
+        farthestOrderIndex: { type: integer, nullable: true }
+        perCategory:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryStats'
+    ErrorResponse:
+      type: object
+      properties:
+        message: { type: string }
