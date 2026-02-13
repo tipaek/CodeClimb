@@ -1,0 +1,118 @@
+openapi: 3.0.3
+info:
+  title: CodeClimb API
+  version: 0.1.0
+  description: Initial contract-first stub for frontend/backend integration.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/auth/login:
+    post:
+      summary: Log a user in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  expiresInSeconds:
+                    type: integer
+        '401':
+          description: Invalid credentials
+
+  /api/lists:
+    get:
+      summary: Fetch user lists
+      responses:
+        '200':
+          description: List summary collection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        progress:
+                          type: number
+    post:
+      summary: Create a list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+      responses:
+        '201':
+          description: List created
+
+  /api/attempts:
+    post:
+      summary: Record a coding attempt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [listId, challengeId, status]
+              properties:
+                listId:
+                  type: string
+                challengeId:
+                  type: string
+                status:
+                  type: string
+                  enum: [started, completed, skipped]
+                durationSeconds:
+                  type: integer
+      responses:
+        '201':
+          description: Attempt accepted
+
+  /api/dashboard:
+    get:
+      summary: Retrieve dashboard metrics
+      responses:
+        '200':
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  streakDays:
+                    type: integer
+                  solvedCount:
+                    type: integer
+                  activeListCount:
+                    type: integer
