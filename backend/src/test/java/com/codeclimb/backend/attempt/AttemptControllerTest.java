@@ -18,7 +18,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -67,7 +70,7 @@ class AttemptControllerTest {
 
     @Test
     void rejectsEmptyAttemptPayload() throws Exception {
-        String body = objectMapper.writeValueAsString(new EmptyPayload(null, null, null, "", " "));
+        String body = objectMapper.writeValueAsString(new AttemptPayload(null, null, null, "", " "));
         mockMvc.perform(post("/lists/" + listId + "/problems/1/attempts")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -75,5 +78,26 @@ class AttemptControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    private record EmptyPayload(Boolean solved, java.time.LocalDate dateSolved, Integer timeMinutes, String notes, String problemUrl) {}
+    @Test
+    void createsAttemptWhenPayloadHasMeaningfulField() throws Exception {
+        String body = objectMapper.writeValueAsString(new AttemptPayload(true, LocalDate.of(2026, 2, 1), 20, "good", "https://example.com/problem"));
+        mockMvc.perform(post("/lists/" + listId + "/problems/1/attempts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.neet250Id").value(1))
+                .andExpect(jsonPath("$.problemUrl").value("https://example.com/problem"));
+    }
+
+    @Test
+    void createAttemptRequiresJwt() throws Exception {
+        String body = objectMapper.writeValueAsString(new AttemptPayload(true, null, null, null, null));
+        mockMvc.perform(post("/lists/" + listId + "/problems/1/attempts")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isForbidden());
+    }
+
+    private record AttemptPayload(Boolean solved, java.time.LocalDate dateSolved, Integer timeMinutes, String notes, String problemUrl) {}
 }
