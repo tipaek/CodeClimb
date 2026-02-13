@@ -6,12 +6,16 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "lists")
+@Getter
+@Setter
 public class ListEntity {
 
     @Id
@@ -49,14 +53,4 @@ public class ListEntity {
     void onUpdate() {
         updatedAt = OffsetDateTime.now();
     }
-
-    public UUID getId() { return id; }
-    public UUID getUserId() { return userId; }
-    public void setUserId(UUID userId) { this.userId = userId; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getTemplateVersion() { return templateVersion; }
-    public void setTemplateVersion(String templateVersion) { this.templateVersion = templateVersion; }
-    public boolean isDeprecated() { return deprecated; }
-    public void setDeprecated(boolean deprecated) { this.deprecated = deprecated; }
 }

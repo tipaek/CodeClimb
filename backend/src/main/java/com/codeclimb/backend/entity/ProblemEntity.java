@@ -4,9 +4,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "problems")
+@Getter
+@Setter
 public class ProblemEntity {
 
     @Id
@@ -21,13 +25,4 @@ public class ProblemEntity {
 
     @Column(name = "order_index", nullable = false)
     private Integer orderIndex;
-
-    public Integer getNeet250Id() { return neet250Id; }
-    public void setNeet250Id(Integer neet250Id) { this.neet250Id = neet250Id; }
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
-    public String getCategory() { return category; }
-    public void setCategory(String category) { this.category = category; }
-    public Integer getOrderIndex() { return orderIndex; }
-    public void setOrderIndex(Integer orderIndex) { this.orderIndex = orderIndex; }
 }

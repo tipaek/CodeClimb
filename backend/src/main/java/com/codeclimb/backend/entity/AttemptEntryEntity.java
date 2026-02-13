@@ -6,6 +6,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -13,6 +15,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "attempt_entries")
+@Getter
+@Setter
 public class AttemptEntryEntity {
 
     @Id
@@ -60,23 +64,4 @@ public class AttemptEntryEntity {
     void onUpdate() {
         updatedAt = OffsetDateTime.now();
     }
-
-    public UUID getId() { return id; }
-    public UUID getUserId() { return userId; }
-    public void setUserId(UUID userId) { this.userId = userId; }
-    public UUID getListId() { return listId; }
-    public void setListId(UUID listId) { this.listId = listId; }
-    public Integer getNeet250Id() { return neet250Id; }
-    public void setNeet250Id(Integer neet250Id) { this.neet250Id = neet250Id; }
-    public Boolean getSolved() { return solved; }
-    public void setSolved(Boolean solved) { this.solved = solved; }
-    public LocalDate getDateSolved() { return dateSolved; }
-    public void setDateSolved(LocalDate dateSolved) { this.dateSolved = dateSolved; }
-    public Integer getTimeMinutes() { return timeMinutes; }
-    public void setTimeMinutes(Integer timeMinutes) { this.timeMinutes = timeMinutes; }
-    public String getNotes() { return notes; }
-    public void setNotes(String notes) { this.notes = notes; }
-    public String getCodeUrl() { return codeUrl; }
-    public void setCodeUrl(String codeUrl) { this.codeUrl = codeUrl; }
-    public OffsetDateTime getUpdatedAt() { return updatedAt; }
 }
