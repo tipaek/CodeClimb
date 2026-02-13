@@ -261,13 +261,13 @@ components:
         deprecated: { type: boolean }
     UpsertAttemptRequest:
       type: object
-      description: Must include at least one non-empty meaningful field among solved/dateSolved/timeMinutes/notes/codeUrl.
+      description: Must include at least one non-empty meaningful field among solved/dateSolved/timeMinutes/notes/problemUrl.
       properties:
         solved: { type: boolean }
         dateSolved: { type: string, format: date }
         timeMinutes: { type: integer }
         notes: { type: string }
-        codeUrl: { type: string }
+        problemUrl: { type: string }
     Attempt:
       type: object
       properties:
@@ -278,7 +278,7 @@ components:
         dateSolved: { type: string, format: date, nullable: true }
         timeMinutes: { type: integer, nullable: true }
         notes: { type: string, nullable: true }
-        codeUrl: { type: string, nullable: true }
+        problemUrl: { type: string, nullable: true }
         updatedAt: { type: string, format: date-time }
     ProblemWithLatestAttempt:
       type: object
@@ -291,7 +291,7 @@ components:
         dateSolved: { type: string, format: date, nullable: true }
         timeMinutes: { type: integer, nullable: true }
         notes: { type: string, nullable: true }
-        codeUrl: { type: string, nullable: true }
+        problemUrl: { type: string, nullable: true }
         attemptUpdatedAt: { type: string, format: date-time, nullable: true }
     CategoryStats:
       type: object

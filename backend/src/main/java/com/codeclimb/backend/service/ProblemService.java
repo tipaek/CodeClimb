@@ -28,10 +28,10 @@ public class ProblemService {
         listRepository.findByIdAndUserId(listId, userId).orElseThrow(() -> new BadRequestException("List not found"));
         List<?> rows = entityManager.createNativeQuery("""
                 select p.neet250_id, p.title, p.category, p.order_index,
-                       a.solved, a.date_solved, a.time_minutes, a.notes, a.code_url, a.updated_at
+                       a.solved, a.date_solved, a.time_minutes, a.notes, a.problem_url, a.updated_at
                 from problems p
                 left join lateral (
-                  select ae.solved, ae.date_solved, ae.time_minutes, ae.notes, ae.code_url, ae.updated_at
+                  select ae.solved, ae.date_solved, ae.time_minutes, ae.notes, ae.problem_url, ae.updated_at
                   from attempt_entries ae
                   where ae.user_id = :userId and ae.list_id = :listId and ae.neet250_id = p.neet250_id
                   order by ae.updated_at desc

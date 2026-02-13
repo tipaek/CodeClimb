@@ -41,8 +41,8 @@ public class AttemptEntryEntity {
 
     private String notes;
 
-    @Column(name = "code_url")
-    private String codeUrl;
+    @Column(name = "problem_url")
+    private String problemUrl;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;

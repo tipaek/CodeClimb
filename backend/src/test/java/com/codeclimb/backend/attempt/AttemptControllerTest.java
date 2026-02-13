@@ -75,5 +75,5 @@ class AttemptControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
-    private record EmptyPayload(Boolean solved, java.time.LocalDate dateSolved, Integer timeMinutes, String notes, String codeUrl) {}
+    private record EmptyPayload(Boolean solved, java.time.LocalDate dateSolved, Integer timeMinutes, String notes, String problemUrl) {}
 }

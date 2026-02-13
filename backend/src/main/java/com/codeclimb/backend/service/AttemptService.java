@@ -65,7 +65,7 @@ public class AttemptService {
                 && request.dateSolved() == null
                 && request.timeMinutes() == null
                 && (request.notes() == null || request.notes().isBlank())
-                && (request.codeUrl() == null || request.codeUrl().isBlank());
+                && (request.problemUrl() == null || request.problemUrl().isBlank());
     }
 
     private void validateNonEmpty(AttemptDtos.UpsertAttemptRequest request) {
@@ -83,13 +83,13 @@ public class AttemptService {
         entry.setDateSolved(request.dateSolved());
         entry.setTimeMinutes(request.timeMinutes());
         entry.setNotes(request.notes());
-        entry.setCodeUrl(request.codeUrl());
+        entry.setProblemUrl(request.problemUrl());
     }
 
     private AttemptDtos.AttemptResponse toResponse(AttemptEntryEntity entity) {
         return new AttemptDtos.AttemptResponse(
                 entity.getId(), entity.getListId(), entity.getNeet250Id(), entity.getSolved(),
                 entity.getDateSolved(), entity.getTimeMinutes(), entity.getNotes(),
-                entity.getCodeUrl(), entity.getUpdatedAt());
+                entity.getProblemUrl(), entity.getUpdatedAt());
     }
 }
