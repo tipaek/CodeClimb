@@ -6,10 +6,22 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "echo 'dev placeholder: run npm install and wire Vite when dependency access is available'",
-    "build": "echo 'build placeholder'",
-    "lint": "echo 'lint placeholder: no lint rules configured yet'",
-    "typecheck": "echo 'typecheck placeholder: no TS compiler configured yet'",
-    "test": "echo 'test placeholder: no frontend tests configured yet'"
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "lint": "node scripts/lint.mjs",
+    "typecheck": "node scripts/typecheck.mjs",
+    "test": "node scripts/test.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.23",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.9.2",
+    "vite": "^5.4.20"
   }
 }
