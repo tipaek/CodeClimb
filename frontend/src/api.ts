@@ -7,6 +7,14 @@ export class ApiError extends Error {
   }
 }
 
+function joinApiUrl(path: string): string {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  if (API_BASE_URL.startsWith('http://') || API_BASE_URL.startsWith('https://')) {
+    return `${API_BASE_URL}${normalizedPath}`;
+  }
+  return `${API_BASE_URL}${normalizedPath}`;
+}
+
 async function request<T>(path: string, init: RequestInit = {}, token?: string | null): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('Content-Type', 'application/json');
@@ -14,7 +22,12 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string |
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
+  let response: Response;
+  try {
+    response = await fetch(joinApiUrl(path), { ...init, headers });
+  } catch {
+    throw new ApiError('Failed to fetch API. If running local dev, ensure backend is running on :8080 and frontend uses the Vite /api proxy.', 0);
+  }
   if (!response.ok) {
     const text = await response.text();
     try {
