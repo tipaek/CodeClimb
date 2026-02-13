@@ -1,17 +1,15 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-
-function App() {
-  return (
-    <main>
-      <h1>CodeClimb</h1>
-      <p>Frontend skeleton is ready.</p>
-    </main>
-  );
-}
+import { BrowserRouter } from 'react-router-dom';
+import App from './App';
+import { AuthProvider } from './auth';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </BrowserRouter>
   </React.StrictMode>,
 );
