@@ -1694,11 +1694,11 @@
       "order_index": 188
     },
     {
-      "title": "Word Break II",
-      "leetcode_slug": "word-break-ii",
-      "url": "https://leetcode.com/problems/word-break-ii/",
+      "title": "Delete and Earn",
+      "leetcode_slug": "delete-and-earn",
+      "url": "https://leetcode.com/problems/delete-and-earn/",
       "category": "1-D Dynamic Programming",
-      "difficulty": "H",
+      "difficulty": "M",
       "neet250_id": 189,
       "order_index": 189
     },
@@ -1973,9 +1973,9 @@
       "order_index": 219
     },
     {
-      "title": "Gas Station",
-      "leetcode_slug": "gas-station",
-      "url": "https://leetcode.com/problems/gas-station/",
+      "title": "Minimum Number of Refueling Stops",
+      "leetcode_slug": "minimum-number-of-refueling-stops",
+      "url": "https://leetcode.com/problems/minimum-number-of-refueling-stops/",
       "category": "Greedy",
       "difficulty": "H",
       "neet250_id": 220,

@@ -124,6 +124,15 @@ function HomePage() {
   const [newListName, setNewListName] = useState('');
   const timers = useRef<Record<number, number>>({});
 
+  const handleAuthError = (error: unknown): boolean => {
+    if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+      setToken(null);
+      navigate('/login', { replace: true });
+      return true;
+    }
+    return false;
+  };
+
   useEffect(() => {
     if (!token) return;
     const load = async () => {
@@ -134,6 +143,7 @@ function HomePage() {
         const fallback = listsResponse[0]?.id ?? null;
         setSelectedListId(dashboardResponse.latestListId ?? fallback);
       } catch (e) {
+        if (handleAuthError(e)) return;
         setError(e instanceof Error ? e.message : 'Failed to load dashboard/lists');
       }
     };
@@ -163,6 +173,7 @@ function HomePage() {
         });
         setRows(nextRows);
       } catch (e) {
+        if (handleAuthError(e)) return;
         setError(e instanceof Error ? e.message : 'Failed to load problems');
       }
     };
@@ -202,6 +213,9 @@ function HomePage() {
         [neetId]: { ...prev[neetId], attemptId: attempt.id, hasServerData: true, status: 'saved' },
       }));
     } catch (e) {
+      if (handleAuthError(e)) {
+        return;
+      }
       if (e instanceof ApiError && e.status === 400) {
         setRows((prev) => ({ ...prev, [neetId]: { ...prev[neetId], status: 'idle' } }));
         return;

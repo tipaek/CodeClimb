@@ -70,7 +70,7 @@ class AuthControllerTest {
     @Test
     void protectedEndpointRejectsMissingJwt() throws Exception {
         mockMvc.perform(get("/lists"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     private record SignupPayload(String email, String password, String timezone) {}
