@@ -48,7 +48,7 @@ public class AttemptService {
         return toDto(attemptEntryRepository.save(entry));
     }
 
-    public AttemptDtos.AttemptResponse patch(UUID userId, UUID attemptId, AttemptDtos.UpsertAttemptRequest request) {
+    public AttemptDtos.AttemptResponse update(UUID userId, UUID attemptId, AttemptDtos.UpsertAttemptRequest request) {
         AttemptEntryEntity entry = attemptEntryRepository.findByIdAndUserId(attemptId, userId)
                 .orElseThrow(() -> new BadRequestException("Attempt not found"));
         validatePayload(request);
@@ -59,6 +59,11 @@ public class AttemptService {
         entry.setProblemUrl(request.problemUrl());
         entry.setUpdatedAt(OffsetDateTime.now());
         return toDto(attemptEntryRepository.save(entry));
+    }
+
+
+    public AttemptDtos.AttemptResponse patch(UUID userId, UUID attemptId, AttemptDtos.UpsertAttemptRequest request) {
+        return update(userId, attemptId, request);
     }
 
     public void delete(UUID userId, UUID attemptId) {
@@ -74,14 +79,17 @@ public class AttemptService {
     }
 
     private void validatePayload(AttemptDtos.UpsertAttemptRequest request) {
-        boolean hasContent = request.solved() != null
-                || request.dateSolved() != null
-                || request.timeMinutes() != null
-                || (request.notes() != null && !request.notes().isBlank())
-                || (request.problemUrl() != null && !request.problemUrl().isBlank());
-        if (!hasContent) {
+        if (isEmptyAttemptPayload(request)) {
             throw new BadRequestException("Attempt payload must include at least one meaningful field");
         }
+    }
+
+    public static boolean isEmptyAttemptPayload(AttemptDtos.UpsertAttemptRequest request) {
+        return request.solved() == null
+                && request.dateSolved() == null
+                && request.timeMinutes() == null
+                && (request.notes() == null || request.notes().isBlank())
+                && (request.problemUrl() == null || request.problemUrl().isBlank());
     }
 
     private AttemptDtos.AttemptResponse toDto(AttemptEntryEntity entity) {

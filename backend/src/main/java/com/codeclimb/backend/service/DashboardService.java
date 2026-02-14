@@ -40,10 +40,16 @@ public class DashboardService {
         OffsetDateTime lastActivityAt = toOffsetDateTime(attemptEntryRepository.findLastActivityAt(userId, latestListId));
 
         List<?> farthestRows = entityManager.createNativeQuery("""
+            with latest_per_problem as (
+              select distinct on (ae.neet250_id) ae.neet250_id, ae.solved
+              from attempt_entries ae
+              where ae.user_id = :userId and ae.list_id = :listId
+              order by ae.neet250_id, ae.updated_at desc
+            )
             select p.neet250_id, p.order_index, p.title, p.category
-            from attempt_entries a
-            join problems p on p.neet250_id = a.neet250_id and p.template_version = :templateVersion
-            where a.user_id = :userId and a.list_id = :listId and a.solved = true
+            from latest_per_problem lpp
+            join problems p on p.neet250_id = lpp.neet250_id and p.template_version = :templateVersion
+            where lpp.solved = true
             order by p.order_index desc
             limit 1
             """).setParameter("userId", userId).setParameter("listId", latestListId).setParameter("templateVersion", list.getTemplateVersion()).getResultList();
@@ -59,22 +65,26 @@ public class DashboardService {
         }
 
         List<DashboardDtos.ProgressItem> latestSolved = toProgressList(entityManager.createNativeQuery("""
+            with latest_per_problem as (
+              select distinct on (ae.neet250_id) ae.neet250_id, ae.solved
+              from attempt_entries ae
+              where ae.user_id = :userId and ae.list_id = :listId
+              order by ae.neet250_id, ae.updated_at desc
+            )
             select p.neet250_id, p.order_index, p.title, p.category
-            from attempt_entries a
-            join problems p on p.neet250_id = a.neet250_id and p.template_version = :templateVersion
-            where a.user_id = :userId and a.list_id = :listId and a.solved = true
-            group by p.neet250_id, p.order_index, p.title, p.category
+            from latest_per_problem lpp
+            join problems p on p.neet250_id = lpp.neet250_id and p.template_version = :templateVersion
+            where lpp.solved = true
             order by p.order_index desc
             limit 2
             """).setParameter("userId", userId).setParameter("listId", latestListId).setParameter("templateVersion", list.getTemplateVersion()).getResultList());
 
         List<DashboardDtos.ProgressItem> nextUnsolved = toProgressList(entityManager.createNativeQuery("""
             with latest_per_problem as (
-              select ae.neet250_id,
-                     (array_agg(ae.solved order by ae.updated_at desc))[1] as solved
+              select distinct on (ae.neet250_id) ae.neet250_id, ae.solved
               from attempt_entries ae
               where ae.user_id = :userId and ae.list_id = :listId
-              group by ae.neet250_id
+              order by ae.neet250_id, ae.updated_at desc
             )
             select p.neet250_id, p.order_index, p.title, p.category
             from problems p

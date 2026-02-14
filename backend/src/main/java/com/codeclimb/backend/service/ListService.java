@@ -37,7 +37,7 @@ public class ListService {
         return toDto(saved);
     }
 
-    public List<ListDtos.ListResponse> all(UUID userId) {
+    public List<ListDtos.ListResponse> list(UUID userId) {
         return listRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream().map(this::toDto).toList();
     }
 

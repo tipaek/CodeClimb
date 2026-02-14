@@ -1,4 +1,3 @@
-DELETE FROM problems;
 INSERT INTO problems (template_version, neet250_id, order_index, title, leetcode_slug, category, difficulty)
 VALUES
 ('neet250.v1',1,1,'Concatenation of Array','concatenation-of-array','Arrays & Hashing','E'),
@@ -251,4 +250,9 @@ VALUES
 ('neet250.v1',248,248,'Reverse Integer','reverse-integer','Bit Manipulation','M'),
 ('neet250.v1',249,249,'Bitwise AND of Numbers Range','bitwise-and-of-numbers-range','Bit Manipulation','M'),
 ('neet250.v1',250,250,'Minimum Array End','minimum-array-end','Bit Manipulation','M')
-ON CONFLICT (template_version, neet250_id) DO NOTHING;
+ON CONFLICT (template_version, neet250_id) DO UPDATE
+SET order_index = EXCLUDED.order_index,
+    title = EXCLUDED.title,
+    leetcode_slug = EXCLUDED.leetcode_slug,
+    category = EXCLUDED.category,
+    difficulty = EXCLUDED.difficulty;
