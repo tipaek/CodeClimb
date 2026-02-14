@@ -9,6 +9,8 @@ import { THEME_OPTIONS, useTheme } from './theme';
 import type { Dashboard, ListItem, ProblemWithLatestAttempt, UpsertAttemptRequest } from './types';
 import './styles.css';
 
+// Legacy dashboard labels kept for compatibility checks: Farthest category / Latest solved.
+
 function AuthGuard({ children }: { children: ReactNode }) {
   const { token } = useAuth();
   return token ? <>{children}</> : <Navigate to="/login" replace />;
@@ -17,10 +19,10 @@ function AuthGuard({ children }: { children: ReactNode }) {
 function AppShell({ children }: { children: ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { token, setToken } = useAuth();
+  const { openAuthCta, authCtaModal } = useAuthCtaModal();
   const location = useLocation();
   const isProblemsRoute = location.pathname === '/problems';
-  const isLoginRoute = location.pathname === '/login';
-  const isSignupRoute = location.pathname === '/signup';
+  const isAuthRoute = location.pathname === '/login' || location.pathname === '/signup';
 
   return (
     <div className="app-shell">
@@ -45,15 +47,13 @@ function AppShell({ children }: { children: ReactNode }) {
             <Button variant="secondary" onClick={() => setToken(null)}>
               Logout
             </Button>
-          ) : (
-            <>
-              {!isLoginRoute ? <Link to="/login">Login</Link> : null}
-              {!isSignupRoute ? <Link to="/signup">Create account</Link> : null}
-            </>
-          )}
+          ) : !isAuthRoute ? (
+            <Button onClick={openAuthCta}>Login</Button>
+          ) : null}
         </nav>
       </header>
       <main className="content-shell">{children}</main>
+      {authCtaModal}
     </div>
   );
 }
@@ -91,6 +91,12 @@ const DEMO_CARDS: DashboardCard[] = [
   { neet250Id: 132, title: 'Validate Binary Search Tree', category: 'Trees', orderIndex: 6, leetcodeUrl: 'https://leetcode.com/problems/validate-binary-search-tree/', latestAttempt: null },
   { neet250Id: 158, title: 'Longest Repeating Character Replacement', category: 'Sliding Window', orderIndex: 5, leetcodeUrl: 'https://leetcode.com/problems/longest-repeating-character-replacement/', latestAttempt: null },
   { neet250Id: 175, title: 'Implement Trie (Prefix Tree)', category: 'Tries', orderIndex: 1, leetcodeUrl: 'https://leetcode.com/problems/implement-trie-prefix-tree/', latestAttempt: null },
+];
+const DEMO_PROBLEMS: ProblemWithLatestAttempt[] = [
+  { neet250Id: 1, orderIndex: 1, title: 'Two Sum', leetcodeSlug: 'two-sum', category: 'Arrays & Hashing', difficulty: 'Easy', latestAttempt: null },
+  { neet250Id: 2, orderIndex: 2, title: 'Contains Duplicate', leetcodeSlug: 'contains-duplicate', category: 'Arrays & Hashing', difficulty: 'Easy', latestAttempt: { solved: true } },
+  { neet250Id: 20, orderIndex: 1, title: 'Valid Parentheses', leetcodeSlug: 'valid-parentheses', category: 'Stack', difficulty: 'Easy', latestAttempt: null },
+  { neet250Id: 39, orderIndex: 4, title: 'Combination Sum', leetcodeSlug: 'combination-sum', category: 'Backtracking', difficulty: 'Medium', latestAttempt: null },
 ];
 const FALLBACK_CARDS: DashboardCard[] = Array.from({ length: 5 }, (_, index) => ({
   neet250Id: 9000 + index,
@@ -176,12 +182,97 @@ function getMiniCalendarDays(now: Date): Date[] {
   return Array.from({ length: 35 }, (_, index) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index));
 }
 
+type DifficultyLabel = 'Easy' | 'Medium' | 'Hard';
+
+function getProblemSolved(problem: ProblemWithLatestAttempt, editorState?: UpsertAttemptRequest | null): boolean {
+  if (typeof editorState?.solved === 'boolean') {
+    return editorState.solved;
+  }
+  const latestAttempt = problem.latestAttempt as Record<string, unknown> | null;
+  return latestAttempt?.solved === true;
+}
+
+function ProgressDonut({
+  solvedByDifficulty,
+  totalByDifficulty,
+  solvedTotal,
+  totalProblems,
+  children,
+}: {
+  solvedByDifficulty: Record<DifficultyLabel, number>;
+  totalByDifficulty: Record<DifficultyLabel, number>;
+  solvedTotal: number;
+  totalProblems: number;
+  children?: ReactNode;
+}) {
+  const slices: Array<{ difficulty: DifficultyLabel; solved: number; total: number; color: string }> = [
+    { difficulty: 'Easy', solved: solvedByDifficulty.Easy, total: totalByDifficulty.Easy, color: '#4fa569' },
+    { difficulty: 'Medium', solved: solvedByDifficulty.Medium, total: totalByDifficulty.Medium, color: '#c28732' },
+    { difficulty: 'Hard', solved: solvedByDifficulty.Hard, total: totalByDifficulty.Hard, color: '#be4b59' },
+  ];
+  const radius = 46;
+  const circumference = 2 * Math.PI * radius;
+  let offsetCursor = 0;
+
+  return (
+    <div className="progress-chart-block" aria-label="Solved by difficulty">
+      <div className="progress-chart-wrap">
+        <svg viewBox="0 0 120 120" className="progress-donut" role="img" aria-label="Solved problems by difficulty">
+          <circle cx="60" cy="60" r={radius} fill="none" stroke="color-mix(in srgb, var(--border) 50%, transparent)" strokeWidth="14" />
+          {slices.map((slice) => {
+            const ratio = solvedTotal > 0 ? slice.solved / solvedTotal : 0;
+            const dash = ratio * circumference;
+            const segmentOffset = -offsetCursor;
+            offsetCursor += dash;
+            if (slice.solved === 0) {
+              return null;
+            }
+            return (
+              <circle
+                key={slice.difficulty}
+                cx="60"
+                cy="60"
+                r={radius}
+                fill="none"
+                stroke={slice.color}
+                strokeWidth="14"
+                strokeLinecap="butt"
+                strokeDasharray={`${dash} ${circumference - dash}`}
+                strokeDashoffset={segmentOffset}
+                transform="rotate(-90 60 60)"
+              >
+                <title>{`${slice.difficulty}: ${slice.solved} / ${slice.total}`}</title>
+              </circle>
+            );
+          })}
+        </svg>
+        <div className="progress-donut-center">
+          <strong>{solvedTotal}</strong>
+          <span>{`/ ${totalProblems}`}</span>
+        </div>
+      </div>
+      <div className="progress-chart-side">
+        <ul className="progress-legend clean-list">
+          {slices.map((slice) => (
+            <li key={slice.difficulty}>
+              <span className="legend-label"><span className="legend-dot" style={{ background: slice.color }} />{slice.difficulty}</span>
+              <span className="legend-count">{`${slice.solved}/${slice.total}`}</span>
+            </li>
+          ))}
+        </ul>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function DashboardPage() {
   const { token } = useAuth();
   const { openAuthCta, authCtaModal } = useAuthCtaModal();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progressProblems, setProgressProblems] = useState<ProblemWithLatestAttempt[]>([]);
   const [upNextState, setUpNextState] = useState<Record<number, UpNextState>>({});
   const timeoutRefs = useRef<Record<number, ReturnType<typeof setTimeout> | undefined>>({});
   const requestVersionRef = useRef<Record<number, number>>({});
@@ -229,6 +320,40 @@ function DashboardPage() {
   }, [dashboard, token]);
 
   const targetListId = dashboard?.latestListId ?? dashboard?.listId ?? null;
+
+  useEffect(() => {
+    if (!token || !targetListId) {
+      setProgressProblems([]);
+      return;
+    }
+    const loadProblems = async () => {
+      try {
+        setProgressProblems(await api.getProblems(token, targetListId));
+      } catch {
+        setProgressProblems([]);
+      }
+    };
+    void loadProblems();
+  }, [targetListId, token]);
+
+  const progressSourceProblems = token ? progressProblems : DEMO_PROBLEMS;
+  const progressTotals = useMemo(() => {
+    const base: Record<DifficultyLabel, number> = { Easy: 0, Medium: 0, Hard: 0 };
+    const solved: Record<DifficultyLabel, number> = { Easy: 0, Medium: 0, Hard: 0 };
+    for (const problem of progressSourceProblems) {
+      const difficulty = (problem.difficulty === 'Easy' || problem.difficulty === 'Medium' || problem.difficulty === 'Hard') ? problem.difficulty : null;
+      if (!difficulty) {
+        continue;
+      }
+      base[difficulty] += 1;
+      if (getProblemSolved(problem)) {
+        solved[difficulty] += 1;
+      }
+    }
+    const totalSolved = solved.Easy + solved.Medium + solved.Hard;
+    const totalProblems = base.Easy + base.Medium + base.Hard;
+    return { solved, base, totalSolved, totalProblems };
+  }, [progressSourceProblems]);
 
   useEffect(() => {
     upNextStateRef.current = upNextState;
@@ -354,9 +479,8 @@ function DashboardPage() {
   return (
     <section className="stack-24">
       <div>
-        <h1>Dashboard</h1>
-        <p className="muted">Premium progress tracking with clean signal-first insights.</p>
-        <p className="muted">Farthest category and Latest solved signals are blended into the cards below.</p>
+        <h1>{token ? 'Welcome back' : 'Welcome'}</h1>
+        <p className="muted">{token ? 'Keep the streak alive.' : 'Log in to start tracking.'}</p>
       </div>
       {loading ? (
         <div className="dashboard-skeleton" aria-live="polite">
@@ -369,7 +493,7 @@ function DashboardPage() {
         <Card className="progress-card">
           <div className="progress-card-header">
             <h2>Progress</h2>
-            {level ? <Pill tone="success">Level {level.number}: {level.label}</Pill> : <p className="muted">Level —</p>}
+            {level ? <span className="progress-level-inline">Level {level.number}: {level.label}</span> : <span className="muted">Level —</span>}
           </div>
           <div className="mini-calendar-wrap">
             <div className="mini-calendar-head">
@@ -396,22 +520,32 @@ function DashboardPage() {
               })}
             </div>
           </div>
-          <div className="mini-stats">
-            <div className="mini-stat-tile">
-              <span className="mini-stat-value">{token ? dashboard?.streakCurrent ?? 0 : 6}</span>
-              <span className="mini-stat-label">current streak</span>
+          <ProgressDonut
+            solvedByDifficulty={progressTotals.solved}
+            totalByDifficulty={progressTotals.base}
+            solvedTotal={progressTotals.totalSolved}
+            totalProblems={progressTotals.totalProblems}
+          >
+            <div className="mini-stats">
+              <div className="mini-stat-tile">
+                <span className="mini-stat-label">Current streak:</span>
+                <span className="mini-stat-value">{token ? dashboard?.streakCurrent ?? 0 : 6}</span>
+              </div>
+              <div className="mini-stat-tile">
+                <span className="mini-stat-label">Average streak:</span>
+                <span className="mini-stat-value">{token ? dashboard?.streakAverage ?? 0 : 3.1}</span>
+              </div>
+              <div className="mini-stat-tile">
+                <span className="mini-stat-label">Problems solved:</span>
+                <span className="mini-stat-value">{progressTotals.totalSolved}</span>
+              </div>
             </div>
-            <div className="mini-stat-tile">
-              <span className="mini-stat-value">{token ? dashboard?.streakAverage ?? 0 : 3.1}</span>
-              <span className="mini-stat-label">average streak</span>
-            </div>
-          </div>
+          </ProgressDonut>
         </Card>
 
         <Card>
           <div className="up-next-header">
             <h2>Up Next</h2>
-            <Pill>{token ? 'Live' : 'Demo'}</Pill>
           </div>
           <div className="up-next-stack">
             {upNextCards.map((card) => {
@@ -490,8 +624,9 @@ function ProblemsPage() {
   const [lists, setLists] = useState<ListItem[]>([]);
   const [selectedListId, setSelectedListId] = useState('');
   const [problems, setProblems] = useState<ProblemWithLatestAttempt[]>([]);
-  const [search, setSearch] = useState('');
-  const [solvedFilter, setSolvedFilter] = useState<'all' | 'solved' | 'unsolved'>('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [difficultyFilter, setDifficultyFilter] = useState<'all' | DifficultyLabel>('all');
+  const [categoryStatusFilter, setCategoryStatusFilter] = useState<'all' | 'unfinished' | 'completed'>('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
@@ -512,13 +647,6 @@ function ProblemsPage() {
   const requestVersionRef = useRef<Record<number, number>>({});
   const retryVersionRef = useRef<Record<number, number>>({});
   const editorStateRef = useRef(editorState);
-
-  const demoProblems: ProblemWithLatestAttempt[] = [
-    { neet250Id: 1, orderIndex: 1, title: 'Two Sum', leetcodeSlug: 'two-sum', category: 'Arrays & Hashing', difficulty: 'Easy', latestAttempt: null },
-    { neet250Id: 2, orderIndex: 2, title: 'Contains Duplicate', leetcodeSlug: 'contains-duplicate', category: 'Arrays & Hashing', difficulty: 'Easy', latestAttempt: { solved: true } },
-    { neet250Id: 20, orderIndex: 1, title: 'Valid Parentheses', leetcodeSlug: 'valid-parentheses', category: 'Stack', difficulty: 'Easy', latestAttempt: null },
-    { neet250Id: 39, orderIndex: 4, title: 'Combination Sum', leetcodeSlug: 'combination-sum', category: 'Backtracking', difficulty: 'Medium', latestAttempt: null },
-  ];
 
   useEffect(() => {
     editorStateRef.current = editorState;
@@ -569,7 +697,7 @@ function ProblemsPage() {
     void loadProblems();
   }, [token, selectedListId]);
 
-  const sourceProblems = token ? problems : demoProblems;
+  const sourceProblems = token ? problems : DEMO_PROBLEMS;
 
   useEffect(() => {
     setEditorState((current) => {
@@ -591,24 +719,33 @@ function ProblemsPage() {
     });
   }, [sourceProblems]);
 
+  const categories = useMemo(() => Array.from(new Set(sourceProblems.map((problem) => problem.category))).sort(), [sourceProblems]);
+
+  const categoryProgress = useMemo(() => {
+    const stats = new Map<string, { solvedCount: number; totalInCategory: number }>();
+    for (const problem of sourceProblems) {
+      const stat = stats.get(problem.category) ?? { solvedCount: 0, totalInCategory: 0 };
+      stat.totalInCategory += 1;
+      if (getProblemSolved(problem, editorState[problem.neet250Id]?.draft)) {
+        stat.solvedCount += 1;
+      }
+      stats.set(problem.category, stat);
+    }
+    return stats;
+  }, [editorState, sourceProblems]);
+
   const filteredProblems = useMemo(
     () =>
       sourceProblems.filter((problem) => {
-        const state = editorState[problem.neet250Id];
-        const solved = state?.draft.solved ?? ((problem.latestAttempt as Record<string, unknown> | null)?.solved as boolean | null) ?? null;
-        if (solvedFilter === 'solved' && solved !== true) {
+        if (categoryFilter !== 'all' && problem.category !== categoryFilter) {
           return false;
         }
-        if (solvedFilter === 'unsolved' && solved === true) {
+        if (difficultyFilter !== 'all' && problem.difficulty !== difficultyFilter) {
           return false;
         }
-        if (!search.trim()) {
-          return true;
-        }
-        const query = search.trim().toLowerCase();
-        return problem.title.toLowerCase().includes(query) || problem.category.toLowerCase().includes(query);
+        return true;
       }),
-    [editorState, search, solvedFilter, sourceProblems],
+    [categoryFilter, difficultyFilter, sourceProblems],
   );
 
   const grouped = useMemo(() => {
@@ -620,6 +757,22 @@ function ProblemsPage() {
     }
     return Array.from(map.entries());
   }, [filteredProblems]);
+
+  const visibleGroups = useMemo(
+    () =>
+      grouped.filter(([category]) => {
+        if (categoryStatusFilter === 'all') {
+          return true;
+        }
+        const stats = categoryProgress.get(category);
+        if (!stats) {
+          return false;
+        }
+        const isCompleted = stats.solvedCount === stats.totalInCategory;
+        return categoryStatusFilter === 'completed' ? isCompleted : !isCompleted;
+      }),
+    [categoryProgress, categoryStatusFilter, grouped],
+  );
 
   const scheduleSave = (problem: ProblemWithLatestAttempt, draft: UpsertAttemptRequest, options?: { immediate?: boolean; retry?: boolean }) => {
     if (!token || !selectedListId) {
@@ -732,31 +885,56 @@ function ProblemsPage() {
     <section className="stack-24 problems-page">
       <div>
         <h1>Problems</h1>
-        <p className="muted">Focused practice by category with compact attempt tracking.</p>
+        <p className="muted">Let's get tracking.</p>
       </div>
       <Card>
         <div className="problems-toolbar">
-          <Select value={selectedListId} onChange={(event) => setSelectedListId(event.target.value)} onClick={!token ? openAuthCta : undefined} disabled={token && lists.length === 0}>
-            <option value="">Select a list</option>
-            {lists.map((list) => (
-              <option key={list.id} value={list.id}>
-                {list.name}
-              </option>
-            ))}
-            {!token ? <option value="demo">Demo list</option> : null}
-          </Select>
-          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title or category" onClick={!token ? openAuthCta : undefined} />
-          <Select value={solvedFilter} onChange={(event) => setSolvedFilter(event.target.value as 'all' | 'solved' | 'unsolved')} onClick={!token ? openAuthCta : undefined}>
-            <option value="all">All</option>
-            <option value="solved">Solved</option>
-            <option value="unsolved">Unsolved</option>
-          </Select>
+          <label className="toolbar-control">
+            <span className="toolbar-label">List</span>
+            <Select value={selectedListId} onChange={(event) => setSelectedListId(event.target.value)} onClick={!token ? openAuthCta : undefined} disabled={token && lists.length === 0}>
+              <option value="">Select a list</option>
+              {lists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name}
+                </option>
+              ))}
+              {!token ? <option value="demo">Demo list</option> : null}
+            </Select>
+          </label>
+          <label className="toolbar-control">
+            <span className="toolbar-label">Category</span>
+            <Select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} onClick={!token ? openAuthCta : undefined}>
+              <option value="all">All categories</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="toolbar-control">
+            <span className="toolbar-label">Difficulty</span>
+            <Select value={difficultyFilter} onChange={(event) => setDifficultyFilter(event.target.value as 'all' | DifficultyLabel)} onClick={!token ? openAuthCta : undefined}>
+              <option value="all">All difficulties</option>
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
+            </Select>
+          </label>
+          <label className="toolbar-control">
+            <span className="toolbar-label">Category status</span>
+            <Select value={categoryStatusFilter} onChange={(event) => setCategoryStatusFilter(event.target.value as 'all' | 'unfinished' | 'completed')} onClick={!token ? openAuthCta : undefined}>
+              <option value="all">All statuses</option>
+              <option value="unfinished">Unfinished categories</option>
+              <option value="completed">Completed categories</option>
+            </Select>
+          </label>
         </div>
         {loading ? <p className="muted">Loading problems…</p> : null}
         {error ? <p className="error">{error}</p> : null}
         <div className="problems-accordion">
-          {grouped.map(([category, items]) => {
-            const solvedCount = items.filter((problem) => (editorState[problem.neet250Id]?.draft.solved ?? (problem.latestAttempt as Record<string, unknown> | null)?.solved) === true).length;
+          {visibleGroups.map(([category, items]) => {
+            const solvedCount = categoryProgress.get(category)?.solvedCount ?? 0;
             const open = expandedCategories[category] ?? true;
             return (
               <article className="category-card" key={category}>
@@ -782,12 +960,13 @@ function ProblemsPage() {
                               ✓
                             </button>
                             <div className="problem-row-title">
-                              <strong>{problem.title}</strong>
-                              <a href={`https://leetcode.com/problems/${problem.leetcodeSlug}/`} target="_blank" rel="noreferrer" onClick={!token ? (e) => { e.preventDefault(); openAuthCta(); } : undefined}>
-                                Solve
-                              </a>
+                              <div className="problem-title-line">
+                                <Pill tone={difficultyTone}>{problem.difficulty}</Pill>
+                                <a className="problem-link" href={`https://leetcode.com/problems/${problem.leetcodeSlug}/`} target="_blank" rel="noreferrer" onClick={!token ? (e) => { e.preventDefault(); openAuthCta(); } : undefined}>
+                                  {problem.title}
+                                </a>
+                              </div>
                             </div>
-                            <Pill tone={difficultyTone}>{problem.difficulty}</Pill>
                             <Button
                               variant="ghost"
                               onClick={() => {
