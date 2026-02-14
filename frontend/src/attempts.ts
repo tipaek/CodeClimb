@@ -10,9 +10,9 @@ export const EMPTY_ATTEMPT: UpsertAttemptRequest = {
 
 export function isEmptyAttemptPayload(request: UpsertAttemptRequest): boolean {
   return (
-    request.solved === null &&
-    request.dateSolved === null &&
-    request.timeMinutes === null &&
+    request.solved == null &&
+    request.dateSolved == null &&
+    request.timeMinutes == null &&
     (!request.notes || request.notes.trim() === '') &&
     (!request.problemUrl || request.problemUrl.trim() === '')
   );

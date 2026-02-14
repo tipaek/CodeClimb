@@ -59,6 +59,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/List'
+        '403': { $ref: '#/components/responses/Forbidden' }
     get:
       summary: Get user lists
       responses:
@@ -70,6 +71,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/List'
+        '403': { $ref: '#/components/responses/Forbidden' }
   /lists/{id}:
     patch:
       summary: Rename list
@@ -89,6 +91,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/List'
         '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /lists/{id}/deprecate:
     post:
       summary: Deprecate list
@@ -101,6 +104,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/List'
+        '403': { $ref: '#/components/responses/Forbidden' }
   /lists/{listId}/problems/{neetId}/attempts:
     post:
       summary: Create attempt entry
@@ -121,6 +125,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Attempt'
         '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     get:
       summary: Get attempt history newest first
       parameters:
@@ -135,6 +140,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Attempt'
+        '403': { $ref: '#/components/responses/Forbidden' }
   /attempts/{attemptId}:
     patch:
       summary: Edit attempt
@@ -154,6 +160,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Attempt'
         '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
     delete:
       summary: Delete attempt
       parameters:
@@ -161,6 +168,7 @@ paths:
       responses:
         '200':
           description: Deleted
+        '403': { $ref: '#/components/responses/Forbidden' }
   /lists/{listId}/problems:
     get:
       summary: Get list problems with latest attempt for each problem
@@ -175,6 +183,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ProblemWithLatestAttempt'
+        '403': { $ref: '#/components/responses/Forbidden' }
   /dashboard:
     get:
       summary: Dashboard summary for current user
@@ -185,6 +194,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dashboard'
+        '403': { $ref: '#/components/responses/Forbidden' }
 components:
   securitySchemes:
     bearerAuth:
@@ -219,6 +229,8 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Missing or invalid JWT
   schemas:
     SignupRequest:
       type: object
@@ -235,6 +247,7 @@ components:
         password: { type: string }
     AuthResponse:
       type: object
+      required: [accessToken, expiresInSeconds, userId, email, timezone]
       properties:
         accessToken: { type: string }
         expiresInSeconds: { type: integer }
@@ -254,6 +267,7 @@ components:
         name: { type: string }
     List:
       type: object
+      required: [id, name, templateVersion, deprecated]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -262,14 +276,16 @@ components:
     UpsertAttemptRequest:
       type: object
       description: Must include at least one non-empty meaningful field among solved/dateSolved/timeMinutes/notes/problemUrl.
+      required: [solved, dateSolved, timeMinutes, notes, problemUrl]
       properties:
-        solved: { type: boolean }
-        dateSolved: { type: string, format: date }
-        timeMinutes: { type: integer }
-        notes: { type: string }
-        problemUrl: { type: string }
+        solved: { type: boolean, nullable: true }
+        dateSolved: { type: string, format: date, nullable: true }
+        timeMinutes: { type: integer, nullable: true }
+        notes: { type: string, nullable: true }
+        problemUrl: { type: string, nullable: true }
     Attempt:
       type: object
+      required: [id, listId, neet250Id, solved, dateSolved, timeMinutes, notes, problemUrl, updatedAt]
       properties:
         id: { type: string, format: uuid }
         listId: { type: string, format: uuid }
@@ -282,6 +298,7 @@ components:
         updatedAt: { type: string, format: date-time }
     ProblemWithLatestAttempt:
       type: object
+      required: [neet250Id, title, category, orderIndex, solved, dateSolved, timeMinutes, notes, problemUrl, attemptUpdatedAt]
       properties:
         neet250Id: { type: integer }
         title: { type: string }
@@ -295,12 +312,15 @@ components:
         attemptUpdatedAt: { type: string, format: date-time, nullable: true }
     CategoryStats:
       type: object
+      required: [category, solvedCount, avgTimeMinutes]
       properties:
         category: { type: string }
         solvedCount: { type: integer }
         avgTimeMinutes: { type: number, format: double, nullable: true }
     Dashboard:
       type: object
+      description: Nullable progress fields are null for new users with no list/attempt activity yet.
+      required: [latestListId, lastActivityAt, streakCurrent, farthestCategory, farthestOrderIndex, perCategory]
       properties:
         latestListId: { type: string, format: uuid, nullable: true }
         lastActivityAt: { type: string, format: date-time, nullable: true }
@@ -313,5 +333,6 @@ components:
             $ref: '#/components/schemas/CategoryStats'
     ErrorResponse:
       type: object
+      required: [message]
       properties:
         message: { type: string }
