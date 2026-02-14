@@ -3,6 +3,7 @@
 ## Code style basics
 - Keep changes minimal and scoped to the task.
 - Frontend: prefer TypeScript, small components, and explicit script targets in `package.json`.
+- Frontend spec: for all frontend changes, follow `docs/UI_SPEC.md`.
 - Backend: Java 17, Spring Boot conventions, one top-level class per file.
 - Contracts: evolve `contracts/openapi.yaml` first for API-facing work.
 - Do not introduce secret-dependent config; everything must run locally with defaults.
