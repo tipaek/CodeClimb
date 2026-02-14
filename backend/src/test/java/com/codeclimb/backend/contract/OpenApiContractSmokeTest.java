@@ -112,6 +112,20 @@ class OpenApiContractSmokeTest {
         }
     }
 
+
+    @Test
+    void listProblemsResponseShapeMatchesContract() throws Exception {
+        String token = signupAndGetToken("problems-contract@example.com");
+        UUID listId = createList(token, "Contract List");
+
+        mockMvc.perform(get("/lists/" + listId + "/problems").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].neet250Id").value(1))
+                .andExpect(jsonPath("$[0].orderIndex").value(1))
+                .andExpect(jsonPath("$[0].title").isString())
+                .andExpect(jsonPath("$[0].difficulty").isString());
+    }
+
     private static void assertNullableStringOrMissing(JsonNode json, String fieldName) {
         if (!json.has(fieldName)) {
             return;

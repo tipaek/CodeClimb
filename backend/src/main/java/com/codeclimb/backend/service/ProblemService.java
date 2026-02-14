@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -28,18 +29,21 @@ public class ProblemService {
     public List<ProblemDtos.ProblemWithLatestAttemptResponse> listWithLatestAttempt(UUID userId, UUID listId) {
         ListEntity list = listRepository.findByIdAndUserId(listId, userId).orElseThrow(() -> new BadRequestException("List not found"));
         List<?> rows = entityManager.createNativeQuery("""
+                with latest_per_problem as (
+                  select x.template_version, x.neet250_id, x.solved, x.date_solved, x.time_minutes, x.notes, x.problem_url, x.updated_at
+                  from (
+                    select l.template_version, ae.neet250_id, ae.solved, ae.date_solved, ae.time_minutes, ae.notes, ae.problem_url, ae.updated_at,
+                           row_number() over (partition by l.template_version, ae.neet250_id order by ae.updated_at desc) as rn
+                    from attempt_entries ae
+                    join lists l on l.id = ae.list_id
+                    where ae.user_id = :userId and ae.list_id = :listId and l.template_version = :templateVersion
+                  ) x
+                  where x.rn = 1
+                )
                 select p.neet250_id, p.order_index, p.title, p.leetcode_slug, p.category, p.difficulty,
-                       a.solved, a.date_solved, a.time_minutes, a.notes, a.problem_url, a.updated_at
+                       lpp.solved, lpp.date_solved, lpp.time_minutes, lpp.notes, lpp.problem_url, lpp.updated_at
                 from problems p
-                left join lateral (
-                  select ae.solved, ae.date_solved, ae.time_minutes, ae.notes, ae.problem_url, ae.updated_at
-                  from attempt_entries ae
-                  join lists l on l.id = ae.list_id
-                  where ae.user_id = :userId and ae.list_id = :listId and ae.neet250_id = p.neet250_id
-                    and l.template_version = p.template_version
-                  order by ae.updated_at desc
-                  limit 1
-                ) a on true
+                left join latest_per_problem lpp on lpp.neet250_id = p.neet250_id and lpp.template_version = p.template_version
                 where p.template_version = :templateVersion
                 order by p.order_index asc
                 """)
@@ -53,15 +57,21 @@ public class ProblemService {
             ProblemDtos.LatestAttempt latestAttempt = row[6] == null && row[7] == null && row[8] == null
                     && row[9] == null && row[10] == null && row[11] == null
                     ? null
-                    : new ProblemDtos.LatestAttempt((Boolean) row[6], toLocalDate(row[7]), (Integer) row[8], (String) row[9], (String) row[10], toOffsetDateTime(row[11]));
+                    : new ProblemDtos.LatestAttempt((Boolean) row[6], toLocalDate(row[7]), row[8] == null ? null : ((Number) row[8]).intValue(), (String) row[9], (String) row[10], toOffsetDateTime(row[11]));
             out.add(new ProblemDtos.ProblemWithLatestAttemptResponse(
-                    (Integer) row[0], (Integer) row[1], (String) row[2], (String) row[3], (String) row[4], (String) row[5], latestAttempt));
+                    ((Number) row[0]).intValue(), ((Number) row[1]).intValue(), (String) row[2], (String) row[3], (String) row[4], row[5].toString().trim(), latestAttempt));
         }
         return out;
     }
 
-    private java.time.LocalDate toLocalDate(Object value) {
-        return value == null ? null : ((Date) value).toLocalDate();
+    private LocalDate toLocalDate(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof LocalDate localDate) {
+            return localDate;
+        }
+        return ((Date) value).toLocalDate();
     }
 
     private OffsetDateTime toOffsetDateTime(Object value) {
@@ -70,6 +80,12 @@ public class ProblemService {
         }
         if (value instanceof OffsetDateTime odt) {
             return odt;
+        }
+        if (value instanceof java.time.LocalDateTime ldt) {
+            return ldt.atOffset(ZoneOffset.UTC);
+        }
+        if (value instanceof java.time.Instant instant) {
+            return instant.atOffset(ZoneOffset.UTC);
         }
         return ((Timestamp) value).toInstant().atOffset(ZoneOffset.UTC);
     }
