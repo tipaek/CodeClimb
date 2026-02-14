@@ -2,6 +2,8 @@ package com.codeclimb.backend.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -18,6 +20,12 @@ import java.util.UUID;
 @Getter
 @Setter
 public class AttemptEntryEntity {
+
+    public enum ConfidenceLevel {
+        LOW,
+        MEDIUM,
+        HIGH
+    }
 
     @Id
     private UUID id;
@@ -38,6 +46,19 @@ public class AttemptEntryEntity {
 
     @Column(name = "time_minutes")
     private Integer timeMinutes;
+
+    @Column(name = "attempts")
+    private Integer attempts;
+
+    @Column(name = "confidence")
+    @Enumerated(EnumType.STRING)
+    private ConfidenceLevel confidence;
+
+    @Column(name = "time_complexity")
+    private String timeComplexity;
+
+    @Column(name = "space_complexity")
+    private String spaceComplexity;
 
     private String notes;
 
