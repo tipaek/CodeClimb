@@ -83,6 +83,12 @@ class OpenApiContractSmokeTest {
         assertNullableStringOrMissing(json, "lastActivityAt");
         assertNullableStringOrMissing(json, "farthestCategory");
         assertNullableNumberOrMissing(json, "farthestOrderIndex");
+        if (!json.has("latestSolved") || !json.get("latestSolved").isArray()) {
+            throw new AssertionError("latestSolved should be array");
+        }
+        if (!json.has("nextUnsolved") || !json.get("nextUnsolved").isArray()) {
+            throw new AssertionError("nextUnsolved should be array");
+        }
     }
 
 
