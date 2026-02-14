@@ -24,5 +24,5 @@ public interface AttemptEntryRepository extends JpaRepository<AttemptEntryEntity
         select max(updated_at) from attempt_entries
         where user_id = :userId and list_id = :listId
         """, nativeQuery = true)
-    java.time.OffsetDateTime findLastActivityAt(UUID userId, UUID listId);
+    Object findLastActivityAt(UUID userId, UUID listId);
 }
