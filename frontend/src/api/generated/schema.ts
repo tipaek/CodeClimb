@@ -34,6 +34,10 @@ export type components = {
   solved: (boolean) | null;
   dateSolved: (string) | null;
   timeMinutes: (number) | null;
+  attempts: (number) | null;
+  confidence: (string) | null;
+  timeComplexity: (string) | null;
+  spaceComplexity: (string) | null;
   notes: (string) | null;
   problemUrl: (string) | null;
 };
@@ -44,6 +48,10 @@ export type components = {
   solved: (boolean) | null;
   dateSolved: (string) | null;
   timeMinutes: (number) | null;
+  attempts: (number) | null;
+  confidence: (string) | null;
+  timeComplexity: (string) | null;
+  spaceComplexity: (string) | null;
   notes: (string) | null;
   problemUrl: (string) | null;
   updatedAt: string;
@@ -61,6 +69,10 @@ export type components = {
   solved: (boolean) | null;
   dateSolved: (string) | null;
   timeMinutes: (number) | null;
+  attempts: (number) | null;
+  confidence: (string) | null;
+  timeComplexity: (string) | null;
+  spaceComplexity: (string) | null;
   notes: (string) | null;
   problemUrl: (string) | null;
   updatedAt: (string) | null;
