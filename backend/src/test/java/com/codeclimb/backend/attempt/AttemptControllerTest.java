@@ -24,7 +24,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:codeclimb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=",
+        "spring.datasource.driver-class-name=org.h2.Driver",
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.flyway.enabled=false"
+})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class AttemptControllerTest {
@@ -53,15 +60,18 @@ class AttemptControllerTest {
 
         ListEntity list = new ListEntity();
         list.setName("Main");
-        list.setTemplateVersion("v1");
+        list.setTemplateVersion("neet250.v1");
         list.setUserId(user.getId());
         list = listRepository.save(list);
         listId = list.getId();
 
         ProblemEntity problem = new ProblemEntity();
         problem.setNeet250Id(1);
+        problem.setTemplateVersion("neet250.v1");
         problem.setTitle("Two Sum");
+        problem.setLeetcodeSlug("two-sum");
         problem.setCategory("Arrays");
+        problem.setDifficulty('E');
         problem.setOrderIndex(1);
         problemRepository.save(problem);
 
@@ -96,7 +106,7 @@ class AttemptControllerTest {
         mockMvc.perform(post("/lists/" + listId + "/problems/1/attempts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     private record AttemptPayload(Boolean solved, java.time.LocalDate dateSolved, Integer timeMinutes, String notes, String problemUrl) {}
