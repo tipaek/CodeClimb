@@ -8,10 +8,17 @@ execSync('npm run gen:api', { stdio: 'inherit' });
 
 const after = readFileSync(generatedFile, 'utf8');
 
-const stripBanner = (source) => source.replace(/^\/\*\*[\s\S]*?\*\/\n\n/, '').trimEnd();
+const normalize = (source) => source.replace(/\r\n/g, '\n').trimEnd();
+const stripBanner = (source) => normalize(source).replace(/^\/\*\*[\s\S]*?\*\/\s*/, '');
 
 if (before === after) {
   console.log('generated API files are up to date');
+  process.exit(0);
+}
+
+if (normalize(before) === normalize(after)) {
+  writeFileSync(generatedFile, before, 'utf8');
+  console.log('generated API files are up to date (whitespace-only drift ignored)');
   process.exit(0);
 }
 
