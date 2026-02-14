@@ -187,6 +187,20 @@ paths:
   /dashboard:
     get:
       summary: Dashboard summary for current user
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [latest, list, all]
+            default: latest
+        - name: listId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
       responses:
         '200':
           description: Dashboard data
@@ -332,27 +346,30 @@ components:
         notes: { type: string, nullable: true }
         problemUrl: { type: string, nullable: true }
         updatedAt: { type: string, format: date-time, nullable: true }
-    CategoryStats:
+    DashboardScope:
+      type: string
+      enum: [latest, list, all]
+    DashboardCategorySolvedStats:
       type: object
-      required: [category, solvedCount, avgTimeMinutes]
+      required: [category, solvedCount, totalInCategory]
       properties:
         category: { type: string }
         solvedCount: { type: integer }
-        avgTimeMinutes: { type: number, format: double, nullable: true }
-    Dashboard:
+        totalInCategory: { type: integer }
+    DashboardSolvedCounts:
       type: object
-      description: Nullable progress fields are null for new users with no list/attempt activity yet.
-      required: [latestListId, lastActivityAt, streakCurrent, farthestCategory, farthestOrderIndex, farthestSolved, latestSolved, nextUnsolved, perCategory]
+      required: [totalSolved, byCategory]
+      description: For scope=all, totals are based on templateVersion neet250.v1.
       properties:
-        latestListId: { type: string, format: uuid, nullable: true }
-        lastActivityAt: { type: string, format: date-time, nullable: true }
-        streakCurrent: { type: integer }
-        farthestCategory: { type: string, nullable: true }
-        farthestOrderIndex: { type: integer, nullable: true }
-        farthestSolved:
-          allOf:
-            - $ref: '#/components/schemas/ProgressProblem'
-          nullable: true
+        totalSolved: { type: integer }
+        byCategory:
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardCategorySolvedStats'
+    DashboardRightPanel:
+      type: object
+      required: [latestSolved, nextUnsolved]
+      properties:
         latestSolved:
           type: array
           items:
@@ -361,10 +378,28 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProgressProblem'
-        perCategory:
-          type: array
-          items:
-            $ref: '#/components/schemas/CategoryStats'
+    Dashboard:
+      type: object
+      description: Nullable progress fields are null for new users with no list/attempt activity yet.
+      required: [scope, latestListId, listId, lastActivityAt, streakCurrent, streakAverage, farthestCategory, farthestOrderIndex, farthestProblem, solvedCounts, rightPanel]
+      properties:
+        scope:
+          $ref: '#/components/schemas/DashboardScope'
+        latestListId: { type: string, format: uuid, nullable: true }
+        listId: { type: string, format: uuid, nullable: true }
+        lastActivityAt: { type: string, format: date-time, nullable: true }
+        streakCurrent: { type: integer }
+        streakAverage: { type: number, format: double }
+        farthestCategory: { type: string, nullable: true }
+        farthestOrderIndex: { type: integer, nullable: true }
+        farthestProblem:
+          allOf:
+            - $ref: '#/components/schemas/ProgressProblem'
+          nullable: true
+        solvedCounts:
+          $ref: '#/components/schemas/DashboardSolvedCounts'
+        rightPanel:
+          $ref: '#/components/schemas/DashboardRightPanel'
     ProgressProblem:
       type: object
       required: [neet250Id, orderIndex, title, category]

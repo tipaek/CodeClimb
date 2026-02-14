@@ -77,21 +77,32 @@ export type components = {
   problemUrl: (string) | null;
   updatedAt: (string) | null;
 };
-    CategoryStats: {
+    DashboardScope: string;
+    DashboardCategorySolvedStats: {
   category: string;
   solvedCount: number;
-  avgTimeMinutes: (number) | null;
+  totalInCategory: number;
 };
-    Dashboard: {
-  latestListId: (string) | null;
-  lastActivityAt: (string) | null;
-  streakCurrent: number;
-  farthestCategory: (string) | null;
-  farthestOrderIndex: (number) | null;
-  farthestSolved: (Record<string, unknown>) | null;
+    DashboardSolvedCounts: {
+  totalSolved: number;
+  byCategory: (components['schemas']['DashboardCategorySolvedStats'])[];
+};
+    DashboardRightPanel: {
   latestSolved: (components['schemas']['ProgressProblem'])[];
   nextUnsolved: (components['schemas']['ProgressProblem'])[];
-  perCategory: (components['schemas']['CategoryStats'])[];
+};
+    Dashboard: {
+  scope: components['schemas']['DashboardScope'];
+  latestListId: (string) | null;
+  listId: (string) | null;
+  lastActivityAt: (string) | null;
+  streakCurrent: number;
+  streakAverage: number;
+  farthestCategory: (string) | null;
+  farthestOrderIndex: (number) | null;
+  farthestProblem: (Record<string, unknown>) | null;
+  solvedCounts: components['schemas']['DashboardSolvedCounts'];
+  rightPanel: components['schemas']['DashboardRightPanel'];
 };
     ProgressProblem: {
   neet250Id: number;
