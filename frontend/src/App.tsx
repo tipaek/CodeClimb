@@ -161,6 +161,7 @@ function HomePage() {
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [lists, setLists] = useState<ListItem[]>([]);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
+  const [dashboardScope, setDashboardScope] = useState<'latest' | 'list' | 'all'>('latest');
   const [problems, setProblems] = useState<ProblemWithLatestAttempt[]>([]);
   const [rows, setRows] = useState<Record<number, EditableRowState>>({});
   const [historyByNeetId, setHistoryByNeetId] = useState<Record<number, Attempt[]>>({});
@@ -194,7 +195,8 @@ function HomePage() {
       try {
         setLoading(true);
         setError(null);
-        const [dashboardResponse, listsResponse] = await Promise.all([api.getDashboard(token), api.getLists(token)]);
+        const listsResponse = await api.getLists(token);
+        const dashboardResponse = await api.getDashboard(token, 'latest');
         setDashboard(dashboardResponse);
         setLists(listsResponse);
         setSelectedListId(dashboardResponse.latestListId ?? listsResponse[0]?.id ?? null);
@@ -209,6 +211,23 @@ function HomePage() {
 
     void load();
   }, [token]);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    const loadDashboard = async () => {
+      try {
+        const response = await api.getDashboard(token, dashboardScope, dashboardScope === 'list' ? selectedListId : undefined);
+        setDashboard(response);
+      } catch (e) {
+        if (!handleAuthError(e)) {
+          setError(e instanceof Error ? e.message : 'Failed to load dashboard');
+        }
+      }
+    };
+    void loadDashboard();
+  }, [token, dashboardScope, selectedListId]);
 
   useEffect(() => {
     if (!token || !selectedListId) {
@@ -501,27 +520,27 @@ function HomePage() {
       <section>
         <h3>Latest solved (2)</h3>
         <ul>
-          {(dashboard?.latestSolved ?? []).slice(0, 2).map((item) => (
+          {(dashboard?.rightPanel.latestSolved ?? []).slice(0, 2).map((item) => (
             <li key={item.neet250Id}>
               <button className="link-button" onClick={() => jumpToProblem(item.neet250Id)}>
                 {item.orderIndex}. {item.title}
               </button>
             </li>
           ))}
-          {!dashboard?.latestSolved?.length && <li className="muted">No solved problems yet.</li>}
+          {!dashboard?.rightPanel.latestSolved?.length && <li className="muted">No solved problems yet.</li>}
         </ul>
       </section>
       <section>
         <h3>Next 4 unsolved</h3>
         <ul>
-          {(dashboard?.nextUnsolved ?? []).slice(0, 4).map((item) => (
+          {(dashboard?.rightPanel.nextUnsolved ?? []).slice(0, 4).map((item) => (
             <li key={item.neet250Id}>
               <button className="link-button" onClick={() => jumpToProblem(item.neet250Id)}>
                 {item.orderIndex}. {item.title}
               </button>
             </li>
           ))}
-          {!dashboard?.nextUnsolved?.length && <li className="muted">Everything solved 🎉</li>}
+          {!dashboard?.rightPanel.nextUnsolved?.length && <li className="muted">Everything solved 🎉</li>}
         </ul>
       </section>
     </aside>
@@ -560,12 +579,29 @@ function HomePage() {
             <strong>Current streak:</strong> {dashboard?.streakCurrent ?? 0}
           </p>
           <p>
+            <strong>Avg streak:</strong> {dashboard?.streakAverage?.toFixed(2) ?? '0.00'}
+          </p>
+          <p>
             <strong>Farthest category:</strong> {dashboard?.farthestCategory ?? '—'}
           </p>
+          <p>
+            <strong>Total solved:</strong> {dashboard?.solvedCounts.totalSolved ?? 0}
+          </p>
+          <p>
+            <strong>Overall avg time (min):</strong> {dashboard?.timeAverages.overallAvgTimeMinutes?.toFixed(2) ?? '—'}
+          </p>
+          <label>
+            Dashboard scope
+            <select value={dashboardScope} onChange={(event) => setDashboardScope(event.target.value as 'latest' | 'list' | 'all')}>
+              <option value="latest">Latest list</option>
+              <option value="list" disabled={!selectedListId}>This list</option>
+              <option value="all">All lists</option>
+            </select>
+          </label>
           <ul>
-            {(dashboard?.perCategory ?? []).map((row) => (
+            {(dashboard?.solvedCounts.byCategory ?? []).map((row) => (
               <li key={row.category}>
-                {row.category}: {row.solvedCount}
+                {row.category}: {row.solvedCount}/{row.totalInCategory} (E {row.easySolved}, M {row.mediumSolved}, H {row.hardSolved})
               </li>
             ))}
           </ul>
@@ -935,7 +971,7 @@ function DashboardPage() {
     if (!token) {
       return;
     }
-    void api.getDashboard(token).then(setDashboard);
+    void api.getDashboard(token, 'latest').then(setDashboard);
   }, [token]);
 
   return (
@@ -944,10 +980,11 @@ function DashboardPage() {
       <p>Last activity: {dashboard?.lastActivityAt ?? '—'}</p>
       <p>Current streak: {dashboard?.streakCurrent ?? 0}</p>
       <p>Farthest category: {dashboard?.farthestCategory ?? '—'}</p>
+      <p>Average streak: {dashboard?.streakAverage ?? 0}</p>
       <ul>
-        {(dashboard?.perCategory ?? []).map((row) => (
+        {(dashboard?.solvedCounts.byCategory ?? []).map((row) => (
           <li key={row.category}>
-            {row.category}: {row.solvedCount}
+            {row.category}: {row.solvedCount}/{row.totalInCategory}
           </li>
         ))}
       </ul>

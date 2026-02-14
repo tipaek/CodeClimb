@@ -51,7 +51,13 @@ export const api = {
     request<AuthResponse>('/auth/signup', { method: 'POST', body: JSON.stringify(payload) }),
   login: (payload: LoginRequest) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
-  getDashboard: (token: string) => request<Dashboard>('/dashboard', {}, token),
+  getDashboard: (token: string, scope: 'latest' | 'list' | 'all' = 'latest', listId?: string | null) => {
+    const params = new URLSearchParams({ scope });
+    if (scope === 'list' && listId) {
+      params.set('listId', listId);
+    }
+    return request<Dashboard>(`/dashboard?${params.toString()}`, {}, token);
+  },
   getLists: (token: string) => request<ListItem[]>('/lists', {}, token),
   createList: (token: string, payload: CreateListRequest) =>
     request<ListItem>('/lists', { method: 'POST', body: JSON.stringify(payload) }, token),
