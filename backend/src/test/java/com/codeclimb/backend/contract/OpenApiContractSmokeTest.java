@@ -77,7 +77,7 @@ class OpenApiContractSmokeTest {
         String token = signupAndGetToken("attempt-contract@example.com");
         UUID listId = createList(token, "Contract List");
 
-        String invalidPayload = objectMapper.writeValueAsString(new AttemptPayload(null, null, null, "", " "));
+        String invalidPayload = objectMapper.writeValueAsString(new AttemptPayload(null, null, null, null, null, null, null, "", " "));
 
         mockMvc.perform(post("/lists/" + listId + "/problems/1/attempts")
                         .header("Authorization", "Bearer " + token)
@@ -175,5 +175,6 @@ class OpenApiContractSmokeTest {
 
     private record SignupPayload(String email, String password, String timezone) {}
     private record CreateListPayload(String name, String templateVersion) {}
-    private record AttemptPayload(Boolean solved, String dateSolved, Integer timeMinutes, String notes, String problemUrl) {}
+    private record AttemptPayload(Boolean solved, String dateSolved, Integer timeMinutes, Integer attempts,
+                                  String confidence, String timeComplexity, String spaceComplexity, String notes, String problemUrl) {}
 }

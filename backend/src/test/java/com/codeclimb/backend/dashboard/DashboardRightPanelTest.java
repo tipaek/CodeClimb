@@ -127,7 +127,7 @@ class DashboardRightPanelTest {
     }
 
     private void createAttempt(String token, UUID listId, int neetId, boolean solved) throws Exception {
-        String payload = objectMapper.writeValueAsString(new AttemptPayload(solved, null, null, "", ""));
+        String payload = objectMapper.writeValueAsString(new AttemptPayload(solved, null, null, null, null, null, null, "", ""));
         mockMvc.perform(post("/lists/" + listId + "/problems/" + neetId + "/attempts")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -137,7 +137,7 @@ class DashboardRightPanelTest {
 
 
     private void createAttemptWithDate(String token, UUID listId, int neetId, String dateSolved) throws Exception {
-        String payload = objectMapper.writeValueAsString(new AttemptPayload(true, dateSolved, null, "", ""));
+        String payload = objectMapper.writeValueAsString(new AttemptPayload(true, dateSolved, null, null, null, null, null, "", ""));
         mockMvc.perform(post("/lists/" + listId + "/problems/" + neetId + "/attempts")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -172,5 +172,6 @@ class DashboardRightPanelTest {
 
     private record SignupPayload(String email, String password, String timezone) {}
     private record CreateListPayload(String name, String templateVersion) {}
-    private record AttemptPayload(Boolean solved, String dateSolved, Integer timeMinutes, String notes, String problemUrl) {}
+    private record AttemptPayload(Boolean solved, String dateSolved, Integer timeMinutes, Integer attempts,
+                                  String confidence, String timeComplexity, String spaceComplexity, String notes, String problemUrl) {}
 }
