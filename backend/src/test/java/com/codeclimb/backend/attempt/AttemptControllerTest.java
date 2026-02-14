@@ -106,7 +106,7 @@ class AttemptControllerTest {
         mockMvc.perform(post("/lists/" + listId + "/problems/1/attempts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     private record AttemptPayload(Boolean solved, java.time.LocalDate dateSolved, Integer timeMinutes, String notes, String problemUrl) {}
