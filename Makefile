@@ -1,7 +1,7 @@
 .PHONY: verify-frontend verify-backend verify
 
 verify-frontend:
-	cd frontend && npm ci --no-audit --no-fund && npm run lint && npm run typecheck && npm run test
+	cd frontend && npm install --no-audit --no-fund && npm run lint && npm run typecheck && npm run test
 
 verify-backend:
 	cd backend && \
