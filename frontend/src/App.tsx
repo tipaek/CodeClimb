@@ -112,6 +112,7 @@ function listHasServerData(draft: UpsertAttemptRequest): boolean {
 
 function HomePage() {
   const { token, setToken } = useAuth();
+  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [lists, setLists] = useState<ListItem[]>([]);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
