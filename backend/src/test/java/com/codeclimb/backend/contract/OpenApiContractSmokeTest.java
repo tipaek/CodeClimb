@@ -1,7 +1,9 @@
 package com.codeclimb.backend.contract;
 
+import com.codeclimb.backend.entity.ProblemEntity;
 import com.codeclimb.backend.repository.AttemptEntryRepository;
 import com.codeclimb.backend.repository.ListRepository;
+import com.codeclimb.backend.repository.ProblemRepository;
 import com.codeclimb.backend.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,7 +23,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:codeclimb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=",
+        "spring.datasource.driver-class-name=org.h2.Driver",
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.flyway.enabled=false"
+})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class OpenApiContractSmokeTest {
@@ -31,12 +40,24 @@ class OpenApiContractSmokeTest {
     @Autowired private UserRepository userRepository;
     @Autowired private ListRepository listRepository;
     @Autowired private AttemptEntryRepository attemptEntryRepository;
+    @Autowired private ProblemRepository problemRepository;
 
     @BeforeEach
     void clean() {
         attemptEntryRepository.deleteAll();
         listRepository.deleteAll();
         userRepository.deleteAll();
+        problemRepository.deleteAll();
+
+        ProblemEntity problem = new ProblemEntity();
+        problem.setNeet250Id(1);
+        problem.setTemplateVersion("neet250.v1");
+        problem.setTitle("Two Sum");
+        problem.setLeetcodeSlug("two-sum");
+        problem.setCategory("Arrays & Hashing");
+        problem.setDifficulty("E");
+        problem.setOrderIndex(1);
+        problemRepository.save(problem);
     }
 
     @Test
@@ -83,8 +104,13 @@ class OpenApiContractSmokeTest {
         assertNullableStringOrMissing(json, "lastActivityAt");
         assertNullableStringOrMissing(json, "farthestCategory");
         assertNullableNumberOrMissing(json, "farthestOrderIndex");
+        if (!json.has("latestSolved") || !json.get("latestSolved").isArray()) {
+            throw new AssertionError("latestSolved should be array");
+        }
+        if (!json.has("nextUnsolved") || !json.get("nextUnsolved").isArray()) {
+            throw new AssertionError("nextUnsolved should be array");
+        }
     }
-
 
     private static void assertNullableStringOrMissing(JsonNode json, String fieldName) {
         if (!json.has(fieldName)) {

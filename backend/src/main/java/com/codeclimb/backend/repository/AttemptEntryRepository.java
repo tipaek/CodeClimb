@@ -13,12 +13,12 @@ public interface AttemptEntryRepository extends JpaRepository<AttemptEntryEntity
     List<AttemptEntryEntity> findByUserIdAndListIdAndNeet250IdOrderByUpdatedAtDesc(UUID userId, UUID listId, Integer neet250Id);
 
     @Query(value = """
-        select list_id from attempt_entries
+        select cast(list_id as varchar) from attempt_entries
         where user_id = :userId
         order by updated_at desc
         limit 1
         """, nativeQuery = true)
-    Optional<UUID> findLatestListForUser(UUID userId);
+    Optional<String> findLatestListForUser(UUID userId);
 
     @Query(value = """
         select max(updated_at) from attempt_entries
