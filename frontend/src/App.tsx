@@ -38,14 +38,13 @@ function AuthGuard({ children }: { children: JSX.Element }) {
   return children;
 }
 
-function LoginPage() {
+function LoginPage() { /* unchanged */
   const { token, setToken } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-
   if (token) return <Navigate to="/" replace />;
 
   const submit = async (event: FormEvent) => {
@@ -77,27 +76,19 @@ function LoginPage() {
   );
 }
 
-function SignupPage() {
+function SignupPage() { /* unchanged */
   const { token, setToken } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [timezone, setTimezone] = useState('America/Chicago');
   const [error, setError] = useState<string | null>(null);
-
   if (token) return <Navigate to="/" replace />;
+  const submit = async (event: FormEvent) => { event.preventDefault(); setError(null); try { const response = await api.signup({ email, password, timezone }); setToken(response.accessToken); navigate('/', { replace: true }); } catch (e) { setError(e instanceof Error ? e.message : 'Signup failed'); } };
+  return <main className="auth-page"><h1>Signup</h1><form onSubmit={submit}><input placeholder="email" value={email} onChange={(e) => setEmail(e.target.value)} /><input placeholder="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /><input placeholder="timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} /><button type="submit">Create account</button></form>{error && <p className="error">{error}</p>}<p>Already have an account? <Link to="/login">Login</Link></p></main>;
+}
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    setError(null);
-    try {
-      const response = await api.signup({ email, password, timezone });
-      setToken(response.accessToken);
-      navigate('/', { replace: true });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Signup failed');
-    }
-  };
+type LatestAttemptLike = Partial<Attempt> & Record<string, unknown>;
 
   return (
     <main className="auth-page">
@@ -299,21 +290,28 @@ function HomePage() {
         },
       };
     });
-
-    if (timers.current[neetId]) {
-      window.clearTimeout(timers.current[neetId]);
-    }
-    timers.current[neetId] = window.setTimeout(() => {
-      void saveRow(selectedListId, neetId);
-    }, 650);
+    if (timers.current[neetId]) window.clearTimeout(timers.current[neetId]);
+    timers.current[neetId] = window.setTimeout(() => { void saveRow(selectedListId, neetId); }, 650);
   };
 
   const loadHistory = async (neetId: number) => {
     if (!token || !selectedListId) return;
     const history = await api.getAttemptsHistory(token, selectedListId, neetId);
     setHistoryByNeetId((prev) => ({ ...prev, [neetId]: history }));
-    if (history[0]) {
-      setRows((prev) => ({ ...prev, [neetId]: { ...prev[neetId], attemptId: history[0].id, hasServerData: true } }));
+    if (history[0]) setRows((prev) => ({ ...prev, [neetId]: { ...prev[neetId], attemptId: history[0].id, hasServerData: true } }));
+  };
+
+  const saveHistoryAttempt = async (neetId: number, attemptId: string, update: (draft: UpsertAttemptRequest) => UpsertAttemptRequest) => {
+    if (!token) return;
+    const current = (historyByNeetId[neetId] ?? []).find((item) => item.id === attemptId);
+    if (!current) return;
+    const payload = update(current);
+    if (isEmptyAttemptPayload(payload)) return;
+    const patched = await api.patchAttempt(token, attemptId, payload);
+    setHistoryByNeetId((prev) => ({ ...prev, [neetId]: (prev[neetId] ?? []).map((item) => (item.id === attemptId ? patched : item)) }));
+    if (rows[neetId]?.attemptId === attemptId) {
+      setRows((prev) => ({ ...prev, [neetId]: { ...prev[neetId], draft: patched } }));
+      mergeAttemptIntoProblem(neetId, patched);
     }
   };
 
@@ -369,6 +367,8 @@ function HomePage() {
     setNewListName('');
   };
 
+  const createList = async (event: FormEvent) => { event.preventDefault(); if (!token || !newListName.trim()) return; const created = await api.createList(token, { name: newListName.trim(), templateVersion: 'neet250.v1' }); setLists((prev) => [created, ...prev]); setSelectedListId(created.id); setNewListName(''); };
+
   const categories = useMemo(() => ['All', ...Array.from(new Set(problems.map((p) => p.category)))], [problems]);
   const visibleProblems = useMemo(
     () =>
@@ -383,11 +383,7 @@ function HomePage() {
     [problems, rows, selectedCategory, search, solvedFilter],
   );
 
-  const jumpToProblem = (neetId: number) => {
-    setExpanded((prev) => ({ ...prev, [neetId]: true }));
-    void loadHistory(neetId);
-    document.getElementById(`problem-${neetId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
+  const jumpToProblem = (neetId: number) => { setExpanded((prev) => ({ ...prev, [neetId]: true })); void loadHistory(neetId); document.getElementById(`problem-${neetId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
 
   return (
     <main className="page">
@@ -775,9 +771,7 @@ function HomePage() {
   );
 }
 
-function DashboardPage() {
-  const { token } = useAuth();
-  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+function DashboardPage() { const { token } = useAuth(); const [dashboard, setDashboard] = useState<Dashboard | null>(null); useEffect(() => { if (!token) return; void api.getDashboard(token).then(setDashboard); }, [token]); return <main className="page"><h1>Dashboard</h1><p>Last activity: {dashboard?.lastActivityAt ?? '—'}</p><p>Current streak: {dashboard?.streakCurrent ?? 0}</p><p>Farthest category: {dashboard?.farthestCategory ?? '—'}</p><ul>{(dashboard?.perCategory ?? []).map((row) => (<li key={row.category}>{row.category}: {row.solvedCount}</li>))}</ul><Link to="/">Back to problems</Link></main>; }
 
   useEffect(() => {
     if (!token) return;
