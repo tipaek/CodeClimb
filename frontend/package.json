@@ -8,6 +8,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "gen:api": "npx --yes openapi-typescript@7.10.1 ../contracts/openapi.yaml -o src/api/generated/openapi.ts",
+    "verify:api": "node scripts/verify-api.mjs",
     "lint": "node scripts/lint.mjs",
     "typecheck": "node scripts/typecheck.mjs",
     "test": "node scripts/test.mjs"

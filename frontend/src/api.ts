@@ -1,5 +1,10 @@
 import { API_BASE_URL } from './config';
 import type { Attempt, AuthResponse, Dashboard, ListItem, ProblemWithLatestAttempt, UpsertAttemptRequest } from './types';
+import type { paths } from './api/generated/openapi';
+
+type LoginPayload = paths['/auth/login']['post']['requestBody']['content']['application/json'];
+type SignupPayload = paths['/auth/signup']['post']['requestBody']['content']['application/json'];
+type CreateListPayload = paths['/lists']['post']['requestBody']['content']['application/json'];
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -46,13 +51,13 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string |
 }
 
 export const api = {
-  signup: (payload: { email: string; password: string; timezone?: string }) =>
+  signup: (payload: SignupPayload) =>
     request<AuthResponse>('/auth/signup', { method: 'POST', body: JSON.stringify(payload) }),
-  login: (payload: { email: string; password: string }) =>
+  login: (payload: LoginPayload) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify(payload) }),
   getDashboard: (token: string) => request<Dashboard>('/dashboard', {}, token),
   getLists: (token: string) => request<ListItem[]>('/lists', {}, token),
-  createList: (token: string, payload: { name: string; templateVersion: string }) =>
+  createList: (token: string, payload: CreateListPayload) =>
     request<ListItem>('/lists', { method: 'POST', body: JSON.stringify(payload) }, token),
   getProblems: (token: string, listId: string) => request<ProblemWithLatestAttempt[]>(`/lists/${listId}/problems`, {}, token),
   getAttemptsHistory: (token: string, listId: string, neetId: number) =>

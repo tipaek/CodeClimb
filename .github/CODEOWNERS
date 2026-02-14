@@ -1,0 +1,3 @@
+/contracts/openapi.yaml @codeclimb/api
+/backend/src/main/** @codeclimb/backend
+/frontend/src/** @codeclimb/frontend
