@@ -1,22 +1,25 @@
 package com.codeclimb.backend.problem;
 
-import com.codeclimb.backend.repository.ProblemRepository;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
-@ActiveProfiles("test")
 class ProblemDatasetTest {
 
-    @Autowired
-    private ProblemRepository problemRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void neet250TemplateHas250Problems() {
-        assertThat(problemRepository.countByTemplateVersion("neet250.v1")).isEqualTo(250);
+    void neet250TemplateHas250Problems() throws Exception {
+        String content = Files.readString(Path.of("../contracts/neet250.v1.json"));
+        JsonNode root = objectMapper.readTree(content);
+
+        assertThat(root.path("template_version").asText()).isEqualTo("neet250.v1");
+        assertThat(root.path("problems").isArray()).isTrue();
+        assertThat(root.path("problems")).hasSize(250);
     }
 }

@@ -32,7 +32,7 @@ public class DashboardService {
     }
 
     public DashboardDtos.DashboardResponse getDashboard(UUID userId) {
-        UUID latestListId = attemptEntryRepository.findLatestListForUser(userId).orElse(null);
+        UUID latestListId = attemptEntryRepository.findLatestListForUser(userId).map(UUID::fromString).orElse(null);
         if (latestListId == null) {
             return new DashboardDtos.DashboardResponse(null, null, 0, null, null, null, List.of(), List.of(), List.of());
         }
@@ -41,10 +41,14 @@ public class DashboardService {
 
         List<?> farthestRows = entityManager.createNativeQuery("""
             with latest_per_problem as (
-              select distinct on (ae.neet250_id) ae.neet250_id, ae.solved
-              from attempt_entries ae
-              where ae.user_id = :userId and ae.list_id = :listId
-              order by ae.neet250_id, ae.updated_at desc
+              select x.neet250_id, x.solved
+              from (
+                select ae.neet250_id, ae.solved,
+                       row_number() over (partition by ae.neet250_id order by ae.updated_at desc) as rn
+                from attempt_entries ae
+                where ae.user_id = :userId and ae.list_id = :listId
+              ) x
+              where x.rn = 1
             )
             select p.neet250_id, p.order_index, p.title, p.category
             from latest_per_problem lpp
@@ -66,10 +70,14 @@ public class DashboardService {
 
         List<DashboardDtos.ProgressItem> latestSolved = toProgressList(entityManager.createNativeQuery("""
             with latest_per_problem as (
-              select distinct on (ae.neet250_id) ae.neet250_id, ae.solved
-              from attempt_entries ae
-              where ae.user_id = :userId and ae.list_id = :listId
-              order by ae.neet250_id, ae.updated_at desc
+              select x.neet250_id, x.solved
+              from (
+                select ae.neet250_id, ae.solved,
+                       row_number() over (partition by ae.neet250_id order by ae.updated_at desc) as rn
+                from attempt_entries ae
+                where ae.user_id = :userId and ae.list_id = :listId
+              ) x
+              where x.rn = 1
             )
             select p.neet250_id, p.order_index, p.title, p.category
             from latest_per_problem lpp
@@ -81,10 +89,14 @@ public class DashboardService {
 
         List<DashboardDtos.ProgressItem> nextUnsolved = toProgressList(entityManager.createNativeQuery("""
             with latest_per_problem as (
-              select distinct on (ae.neet250_id) ae.neet250_id, ae.solved
-              from attempt_entries ae
-              where ae.user_id = :userId and ae.list_id = :listId
-              order by ae.neet250_id, ae.updated_at desc
+              select x.neet250_id, x.solved
+              from (
+                select ae.neet250_id, ae.solved,
+                       row_number() over (partition by ae.neet250_id order by ae.updated_at desc) as rn
+                from attempt_entries ae
+                where ae.user_id = :userId and ae.list_id = :listId
+              ) x
+              where x.rn = 1
             )
             select p.neet250_id, p.order_index, p.title, p.category
             from problems p
@@ -142,7 +154,7 @@ public class DashboardService {
     }
 
     private DashboardDtos.ProgressItem toProgress(Object[] row) {
-        return new DashboardDtos.ProgressItem((Integer) row[0], (Integer) row[1], (String) row[2], (String) row[3]);
+        return new DashboardDtos.ProgressItem(((Number) row[0]).intValue(), ((Number) row[1]).intValue(), (String) row[2], (String) row[3]);
     }
 
     private OffsetDateTime toOffsetDateTime(Object value) {
@@ -151,6 +163,12 @@ public class DashboardService {
         }
         if (value instanceof OffsetDateTime odt) {
             return odt;
+        }
+        if (value instanceof java.time.LocalDateTime ldt) {
+            return ldt.atOffset(ZoneOffset.UTC);
+        }
+        if (value instanceof java.time.Instant instant) {
+            return instant.atOffset(ZoneOffset.UTC);
         }
         return ((Timestamp) value).toInstant().atOffset(ZoneOffset.UTC);
     }
