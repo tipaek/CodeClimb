@@ -50,15 +50,20 @@ export type components = {
 };
     ProblemWithLatestAttempt: {
   neet250Id: number;
-  title: string;
-  category: string;
   orderIndex: number;
+  title: string;
+  leetcodeSlug: string;
+  category: string;
+  difficulty: string;
+  latestAttempt: (Record<string, unknown>) | null;
+};
+    LatestAttempt: {
   solved: (boolean) | null;
   dateSolved: (string) | null;
   timeMinutes: (number) | null;
   notes: (string) | null;
   problemUrl: (string) | null;
-  attemptUpdatedAt: (string) | null;
+  updatedAt: (string) | null;
 };
     CategoryStats: {
   category: string;
@@ -71,7 +76,16 @@ export type components = {
   streakCurrent: number;
   farthestCategory: (string) | null;
   farthestOrderIndex: (number) | null;
+  farthestSolved: (Record<string, unknown>) | null;
+  latestSolved: (components['schemas']['ProgressProblem'])[];
+  nextUnsolved: (components['schemas']['ProgressProblem'])[];
   perCategory: (components['schemas']['CategoryStats'])[];
+};
+    ProgressProblem: {
+  neet250Id: number;
+  orderIndex: number;
+  title: string;
+  category: string;
 };
     ErrorResponse: {
   message: string;

@@ -298,18 +298,28 @@ components:
         updatedAt: { type: string, format: date-time }
     ProblemWithLatestAttempt:
       type: object
-      required: [neet250Id, title, category, orderIndex, solved, dateSolved, timeMinutes, notes, problemUrl, attemptUpdatedAt]
+      required: [neet250Id, title, category, difficulty, orderIndex, leetcodeSlug, latestAttempt]
       properties:
         neet250Id: { type: integer }
-        title: { type: string }
-        category: { type: string }
         orderIndex: { type: integer }
+        title: { type: string }
+        leetcodeSlug: { type: string }
+        category: { type: string }
+        difficulty: { type: string, enum: [E, M, H] }
+        latestAttempt:
+          allOf:
+            - $ref: '#/components/schemas/LatestAttempt'
+          nullable: true
+    LatestAttempt:
+      type: object
+      required: [solved, dateSolved, timeMinutes, notes, problemUrl, updatedAt]
+      properties:
         solved: { type: boolean, nullable: true }
         dateSolved: { type: string, format: date, nullable: true }
         timeMinutes: { type: integer, nullable: true }
         notes: { type: string, nullable: true }
         problemUrl: { type: string, nullable: true }
-        attemptUpdatedAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
     CategoryStats:
       type: object
       required: [category, solvedCount, avgTimeMinutes]
@@ -320,17 +330,37 @@ components:
     Dashboard:
       type: object
       description: Nullable progress fields are null for new users with no list/attempt activity yet.
-      required: [latestListId, lastActivityAt, streakCurrent, farthestCategory, farthestOrderIndex, perCategory]
+      required: [latestListId, lastActivityAt, streakCurrent, farthestCategory, farthestOrderIndex, farthestSolved, latestSolved, nextUnsolved, perCategory]
       properties:
         latestListId: { type: string, format: uuid, nullable: true }
         lastActivityAt: { type: string, format: date-time, nullable: true }
         streakCurrent: { type: integer }
         farthestCategory: { type: string, nullable: true }
         farthestOrderIndex: { type: integer, nullable: true }
+        farthestSolved:
+          allOf:
+            - $ref: '#/components/schemas/ProgressProblem'
+          nullable: true
+        latestSolved:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgressProblem'
+        nextUnsolved:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProgressProblem'
         perCategory:
           type: array
           items:
             $ref: '#/components/schemas/CategoryStats'
+    ProgressProblem:
+      type: object
+      required: [neet250Id, orderIndex, title, category]
+      properties:
+        neet250Id: { type: integer }
+        orderIndex: { type: integer }
+        title: { type: string }
+        category: { type: string }
     ErrorResponse:
       type: object
       required: [message]

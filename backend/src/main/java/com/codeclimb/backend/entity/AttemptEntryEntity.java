@@ -31,6 +31,9 @@ public class AttemptEntryEntity {
     @Column(name = "neet250_id", nullable = false)
     private Integer neet250Id;
 
+    @Column(name = "template_version", nullable = false)
+    private String templateVersion;
+
     private Boolean solved;
 
     @Column(name = "date_solved")

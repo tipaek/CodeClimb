@@ -4,7 +4,11 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 public class ProblemDtos {
-    public record ProblemWithLatestAttemptResponse(Integer neet250Id, String title, String category, Integer orderIndex,
-                                                   Boolean solved, LocalDate dateSolved, Integer timeMinutes,
-                                                   String notes, String problemUrl, OffsetDateTime attemptUpdatedAt) {}
+
+    public record LatestAttempt(Boolean solved, LocalDate dateSolved, Integer timeMinutes,
+                                String notes, String problemUrl, OffsetDateTime updatedAt) {}
+
+    public record ProblemWithLatestAttemptResponse(Integer neet250Id, Integer orderIndex, String title,
+                                                   String leetcodeSlug, String category, String difficulty,
+                                                   LatestAttempt latestAttempt) {}
 }
