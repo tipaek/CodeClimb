@@ -319,6 +319,7 @@ components:
         avgTimeMinutes: { type: number, format: double, nullable: true }
     Dashboard:
       type: object
+      description: Nullable progress fields are null for new users with no list/attempt activity yet.
       required: [latestListId, lastActivityAt, streakCurrent, farthestCategory, farthestOrderIndex, perCategory]
       properties:
         latestListId: { type: string, format: uuid, nullable: true }

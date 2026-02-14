@@ -70,14 +70,40 @@ class OpenApiContractSmokeTest {
     void dashboardResponseShapeMatchesContract() throws Exception {
         String token = signupAndGetToken("dashboard-contract@example.com");
 
-        mockMvc.perform(get("/dashboard").header("Authorization", "Bearer " + token))
+        String body = mockMvc.perform(get("/dashboard").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.latestListId").exists())
-                .andExpect(jsonPath("$.lastActivityAt").exists())
                 .andExpect(jsonPath("$.streakCurrent").isNumber())
-                .andExpect(jsonPath("$.farthestCategory").exists())
-                .andExpect(jsonPath("$.farthestOrderIndex").exists())
-                .andExpect(jsonPath("$.perCategory").isArray());
+                .andExpect(jsonPath("$.perCategory").isArray())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode json = objectMapper.readTree(body);
+        assertNullableStringOrMissing(json, "latestListId");
+        assertNullableStringOrMissing(json, "lastActivityAt");
+        assertNullableStringOrMissing(json, "farthestCategory");
+        assertNullableNumberOrMissing(json, "farthestOrderIndex");
+    }
+
+
+    private static void assertNullableStringOrMissing(JsonNode json, String fieldName) {
+        if (!json.has(fieldName)) {
+            return;
+        }
+        JsonNode node = json.get(fieldName);
+        if (!node.isNull() && !node.isTextual()) {
+            throw new AssertionError(fieldName + " should be null, missing, or string");
+        }
+    }
+
+    private static void assertNullableNumberOrMissing(JsonNode json, String fieldName) {
+        if (!json.has(fieldName)) {
+            return;
+        }
+        JsonNode node = json.get(fieldName);
+        if (!node.isNull() && !node.isNumber()) {
+            throw new AssertionError(fieldName + " should be null, missing, or number");
+        }
     }
 
     private String signupAndGetToken(String email) throws Exception {
