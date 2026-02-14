@@ -77,7 +77,7 @@ export type components = {
   problemUrl: (string) | null;
   updatedAt: (string) | null;
 };
-    DashboardScope: "latest" | "list" | "all";
+    DashboardScope: string;
     DashboardCategorySolvedStats: {
   category: string;
   solvedCount: number;
@@ -127,3 +127,4 @@ export type components = {
 };
   };
 };
+
