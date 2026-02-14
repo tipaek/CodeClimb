@@ -16,10 +16,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -94,6 +96,27 @@ class DashboardRightPanelTest {
         assertThat(dashboard.at("/nextUnsolved/3/orderIndex").asInt()).isEqualTo(9);
     }
 
+
+    @Test
+    void dashboardPreflightOptionsIsAllowedForDevOrigin() throws Exception {
+        mockMvc.perform(options("/dashboard")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "authorization,content-type"))
+                .andExpect(status().isOk());
+    }
+
+
+    @Test
+    void solvedAttemptWithDateStillReturnsDashboard() throws Exception {
+        String token = signupAndGetToken("dashboard-date@example.com");
+        UUID listId = createList(token, "C");
+        createAttemptWithDate(token, listId, 1, LocalDate.now().toString());
+
+        JsonNode dashboard = getDashboard(token);
+        assertThat(dashboard.get("streakCurrent").asInt()).isGreaterThanOrEqualTo(1);
+    }
+
     private JsonNode getDashboard(String token) throws Exception {
         String body = mockMvc.perform(get("/dashboard").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
@@ -105,6 +128,16 @@ class DashboardRightPanelTest {
 
     private void createAttempt(String token, UUID listId, int neetId, boolean solved) throws Exception {
         String payload = objectMapper.writeValueAsString(new AttemptPayload(solved, null, null, "", ""));
+        mockMvc.perform(post("/lists/" + listId + "/problems/" + neetId + "/attempts")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk());
+    }
+
+
+    private void createAttemptWithDate(String token, UUID listId, int neetId, String dateSolved) throws Exception {
+        String payload = objectMapper.writeValueAsString(new AttemptPayload(true, dateSolved, null, "", ""));
         mockMvc.perform(post("/lists/" + listId + "/problems/" + neetId + "/attempts")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)

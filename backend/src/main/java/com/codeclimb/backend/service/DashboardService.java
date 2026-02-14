@@ -9,7 +9,9 @@ import org.springframework.stereotype.Service;
 
 import java.sql.Date;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
@@ -136,7 +138,7 @@ public class DashboardService {
             """).setParameter("userId", userId).getResultList();
         Set<LocalDate> solvedDates = new HashSet<>();
         for (Object row : solvedDateRows) {
-            solvedDates.add(((Date) row).toLocalDate());
+            solvedDates.add(toLocalDate(row));
         }
         int streak = 0;
         LocalDate cursor = LocalDate.now();
@@ -159,6 +161,26 @@ public class DashboardService {
 
     private DashboardDtos.ProgressItem toProgress(Object[] row) {
         return new DashboardDtos.ProgressItem(((Number) row[0]).intValue(), ((Number) row[1]).intValue(), (String) row[2], (String) row[3]);
+    }
+
+
+    private LocalDate toLocalDate(Object value) {
+        if (value instanceof LocalDate localDate) {
+            return localDate;
+        }
+        if (value instanceof Date sqlDate) {
+            return sqlDate.toLocalDate();
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return localDateTime.toLocalDate();
+        }
+        if (value instanceof Instant instant) {
+            return instant.atZone(ZoneOffset.UTC).toLocalDate();
+        }
+        if (value instanceof Timestamp timestamp) {
+            return timestamp.toLocalDateTime().toLocalDate();
+        }
+        throw new IllegalArgumentException("Unsupported date_solved value type: " + value.getClass().getName());
     }
 
     private OffsetDateTime toOffsetDateTime(Object value) {
