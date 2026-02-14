@@ -34,7 +34,9 @@ public class ProblemService {
                 left join lateral (
                   select ae.solved, ae.date_solved, ae.time_minutes, ae.notes, ae.problem_url, ae.updated_at
                   from attempt_entries ae
+                  join lists l on l.id = ae.list_id
                   where ae.user_id = :userId and ae.list_id = :listId and ae.neet250_id = p.neet250_id
+                    and l.template_version = p.template_version
                   order by ae.updated_at desc
                   limit 1
                 ) a on true

@@ -7,6 +7,9 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ProblemDatasetTest {
@@ -21,5 +24,9 @@ class ProblemDatasetTest {
         assertThat(root.path("template_version").asText()).isEqualTo("neet250.v1");
         assertThat(root.path("problems").isArray()).isTrue();
         assertThat(root.path("problems")).hasSize(250);
+
+        Set<String> slugs = new HashSet<>();
+        root.path("problems").forEach(problem -> slugs.add(problem.path("leetcode_slug").asText()));
+        assertThat(slugs).hasSize(250);
     }
 }
