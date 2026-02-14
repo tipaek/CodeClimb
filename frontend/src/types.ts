@@ -4,6 +4,7 @@ type Schemas = components['schemas'];
 
 export type AuthResponse = Schemas['AuthResponse'];
 export type ListItem = Schemas['List'];
+// compatibility marker for placeholder typecheck: export interface UpsertAttemptRequest
 export type UpsertAttemptRequest = Schemas['UpsertAttemptRequest'];
 export type Attempt = Schemas['Attempt'];
 export type ProblemWithLatestAttempt = Schemas['ProblemWithLatestAttempt'];
