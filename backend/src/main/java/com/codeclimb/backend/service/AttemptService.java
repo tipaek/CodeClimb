@@ -41,6 +41,10 @@ public class AttemptService {
         entry.setSolved(request.solved());
         entry.setDateSolved(request.dateSolved());
         entry.setTimeMinutes(request.timeMinutes());
+        entry.setAttempts(request.attempts());
+        entry.setConfidence(parseConfidence(request.confidence()));
+        entry.setTimeComplexity(normalizeNullable(request.timeComplexity()));
+        entry.setSpaceComplexity(normalizeNullable(request.spaceComplexity()));
         entry.setNotes(request.notes());
         entry.setProblemUrl(request.problemUrl());
         entry.setCreatedAt(OffsetDateTime.now());
@@ -55,6 +59,10 @@ public class AttemptService {
         entry.setSolved(request.solved());
         entry.setDateSolved(request.dateSolved());
         entry.setTimeMinutes(request.timeMinutes());
+        entry.setAttempts(request.attempts());
+        entry.setConfidence(parseConfidence(request.confidence()));
+        entry.setTimeComplexity(normalizeNullable(request.timeComplexity()));
+        entry.setSpaceComplexity(normalizeNullable(request.spaceComplexity()));
         entry.setNotes(request.notes());
         entry.setProblemUrl(request.problemUrl());
         entry.setUpdatedAt(OffsetDateTime.now());
@@ -79,21 +87,50 @@ public class AttemptService {
     }
 
     private void validatePayload(AttemptDtos.UpsertAttemptRequest request) {
+        if (request.attempts() != null && request.attempts() < 1) {
+            throw new BadRequestException("Attempts must be >= 1");
+        }
+        parseConfidence(request.confidence());
         if (isEmptyAttemptPayload(request)) {
             throw new BadRequestException("Attempt payload must include at least one meaningful field");
         }
+    }
+
+    private AttemptEntryEntity.ConfidenceLevel parseConfidence(String confidence) {
+        String value = normalizeNullable(confidence);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return AttemptEntryEntity.ConfidenceLevel.valueOf(value);
+        } catch (IllegalArgumentException error) {
+            throw new BadRequestException("Confidence must be LOW, MEDIUM, or HIGH");
+        }
+    }
+
+    private static String normalizeNullable(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     public static boolean isEmptyAttemptPayload(AttemptDtos.UpsertAttemptRequest request) {
         return request.solved() == null
                 && request.dateSolved() == null
                 && request.timeMinutes() == null
+                && request.attempts() == null
+                && normalizeNullable(request.confidence()) == null
+                && normalizeNullable(request.timeComplexity()) == null
+                && normalizeNullable(request.spaceComplexity()) == null
                 && (request.notes() == null || request.notes().isBlank())
                 && (request.problemUrl() == null || request.problemUrl().isBlank());
     }
 
     private AttemptDtos.AttemptResponse toDto(AttemptEntryEntity entity) {
         return new AttemptDtos.AttemptResponse(entity.getId(), entity.getListId(), entity.getNeet250Id(), entity.getSolved(),
-                entity.getDateSolved(), entity.getTimeMinutes(), entity.getNotes(), entity.getProblemUrl(), entity.getUpdatedAt());
+                entity.getDateSolved(), entity.getTimeMinutes(), entity.getAttempts(),
+                entity.getConfidence() == null ? null : entity.getConfidence().name(), entity.getTimeComplexity(),
+                entity.getSpaceComplexity(), entity.getNotes(), entity.getProblemUrl(), entity.getUpdatedAt());
     }
 }

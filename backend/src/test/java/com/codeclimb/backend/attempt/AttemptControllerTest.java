@@ -80,7 +80,7 @@ class AttemptControllerTest {
 
     @Test
     void rejectsEmptyAttemptPayload() throws Exception {
-        String body = objectMapper.writeValueAsString(new AttemptPayload(null, null, null, "", " "));
+        String body = objectMapper.writeValueAsString(new AttemptPayload(null, null, null, null, null, null, null, "", " "));
         mockMvc.perform(post("/lists/" + listId + "/problems/1/attempts")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -90,24 +90,29 @@ class AttemptControllerTest {
 
     @Test
     void createsAttemptWhenPayloadHasMeaningfulField() throws Exception {
-        String body = objectMapper.writeValueAsString(new AttemptPayload(true, LocalDate.of(2026, 2, 1), 20, "good", "https://example.com/problem"));
+        String body = objectMapper.writeValueAsString(new AttemptPayload(true, LocalDate.of(2026, 2, 1), 20, 2, "HIGH", "O(n)", "O(1)", "good", "https://example.com/problem"));
         mockMvc.perform(post("/lists/" + listId + "/problems/1/attempts")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.neet250Id").value(1))
+                .andExpect(jsonPath("$.confidence").value("HIGH"))
+                .andExpect(jsonPath("$.attempts").value(2))
+                .andExpect(jsonPath("$.timeComplexity").value("O(n)"))
+                .andExpect(jsonPath("$.spaceComplexity").value("O(1)"))
                 .andExpect(jsonPath("$.problemUrl").value("https://example.com/problem"));
     }
 
     @Test
     void createAttemptRequiresJwt() throws Exception {
-        String body = objectMapper.writeValueAsString(new AttemptPayload(true, null, null, null, null));
+        String body = objectMapper.writeValueAsString(new AttemptPayload(true, null, null, null, null, null, null, null, null));
         mockMvc.perform(post("/lists/" + listId + "/problems/1/attempts")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
                 .andExpect(status().isUnauthorized());
     }
 
-    private record AttemptPayload(Boolean solved, java.time.LocalDate dateSolved, Integer timeMinutes, String notes, String problemUrl) {}
+    private record AttemptPayload(Boolean solved, java.time.LocalDate dateSolved, Integer timeMinutes, Integer attempts,
+                                  String confidence, String timeComplexity, String spaceComplexity, String notes, String problemUrl) {}
 }

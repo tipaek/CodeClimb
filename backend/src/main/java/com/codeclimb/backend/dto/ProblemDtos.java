@@ -5,7 +5,8 @@ import java.time.OffsetDateTime;
 
 public class ProblemDtos {
 
-    public record LatestAttempt(Boolean solved, LocalDate dateSolved, Integer timeMinutes,
+    public record LatestAttempt(Boolean solved, LocalDate dateSolved, Integer timeMinutes, Integer attempts,
+                                String confidence, String timeComplexity, String spaceComplexity,
                                 String notes, String problemUrl, OffsetDateTime updatedAt) {}
 
     public record ProblemWithLatestAttemptResponse(Integer neet250Id, Integer orderIndex, String title,

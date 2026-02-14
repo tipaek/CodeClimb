@@ -275,17 +275,21 @@ components:
         deprecated: { type: boolean }
     UpsertAttemptRequest:
       type: object
-      description: Must include at least one non-empty meaningful field among solved/dateSolved/timeMinutes/notes/problemUrl.
-      required: [solved, dateSolved, timeMinutes, notes, problemUrl]
+      description: Must include at least one non-empty meaningful field among solved/dateSolved/timeMinutes/attempts/confidence/timeComplexity/spaceComplexity/notes/problemUrl.
+      required: [solved, dateSolved, timeMinutes, attempts, confidence, timeComplexity, spaceComplexity, notes, problemUrl]
       properties:
         solved: { type: boolean, nullable: true }
         dateSolved: { type: string, format: date, nullable: true }
         timeMinutes: { type: integer, nullable: true }
+        attempts: { type: integer, minimum: 1, nullable: true }
+        confidence: { type: string, enum: [LOW, MEDIUM, HIGH], nullable: true }
+        timeComplexity: { type: string, nullable: true }
+        spaceComplexity: { type: string, nullable: true }
         notes: { type: string, nullable: true }
         problemUrl: { type: string, nullable: true }
     Attempt:
       type: object
-      required: [id, listId, neet250Id, solved, dateSolved, timeMinutes, notes, problemUrl, updatedAt]
+      required: [id, listId, neet250Id, solved, dateSolved, timeMinutes, attempts, confidence, timeComplexity, spaceComplexity, notes, problemUrl, updatedAt]
       properties:
         id: { type: string, format: uuid }
         listId: { type: string, format: uuid }
@@ -293,6 +297,10 @@ components:
         solved: { type: boolean, nullable: true }
         dateSolved: { type: string, format: date, nullable: true }
         timeMinutes: { type: integer, nullable: true }
+        attempts: { type: integer, minimum: 1, nullable: true }
+        confidence: { type: string, enum: [LOW, MEDIUM, HIGH], nullable: true }
+        timeComplexity: { type: string, nullable: true }
+        spaceComplexity: { type: string, nullable: true }
         notes: { type: string, nullable: true }
         problemUrl: { type: string, nullable: true }
         updatedAt: { type: string, format: date-time }
@@ -312,11 +320,15 @@ components:
           nullable: true
     LatestAttempt:
       type: object
-      required: [solved, dateSolved, timeMinutes, notes, problemUrl, updatedAt]
+      required: [solved, dateSolved, timeMinutes, attempts, confidence, timeComplexity, spaceComplexity, notes, problemUrl, updatedAt]
       properties:
         solved: { type: boolean, nullable: true }
         dateSolved: { type: string, format: date, nullable: true }
         timeMinutes: { type: integer, nullable: true }
+        attempts: { type: integer, minimum: 1, nullable: true }
+        confidence: { type: string, enum: [LOW, MEDIUM, HIGH], nullable: true }
+        timeComplexity: { type: string, nullable: true }
+        spaceComplexity: { type: string, nullable: true }
         notes: { type: string, nullable: true }
         problemUrl: { type: string, nullable: true }
         updatedAt: { type: string, format: date-time, nullable: true }
