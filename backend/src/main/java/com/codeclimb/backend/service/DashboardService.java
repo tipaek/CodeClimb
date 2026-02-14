@@ -28,6 +28,20 @@ import java.util.UUID;
 @Service
 public class DashboardService {
 
+    private static final String ALL_SCOPE_TEMPLATE_VERSION = "neet250.v1";
+    private static final String NON_EMPTY_ATTEMPT_PREDICATE = """
+            (
+              ae.solved is not null
+              or ae.time_minutes is not null
+              or ae.attempts is not null
+              or ae.confidence is not null
+              or ae.time_complexity is not null
+              or ae.space_complexity is not null
+              or nullif(trim(ae.notes), '') is not null
+              or nullif(trim(ae.problem_url), '') is not null
+            )
+            """;
+
     private final AttemptEntryRepository attemptEntryRepository;
     private final ListRepository listRepository;
     private final UserRepository userRepository;
@@ -60,44 +74,41 @@ public class DashboardService {
 
         ListEntity scopedList = scopedListId == null ? null : listRepository.findByIdAndUserId(scopedListId, userId)
                 .orElseThrow(() -> new BadRequestException("List not found"));
-
         if (scope == DashboardScope.LATEST && scopedListId == null) {
             return new DashboardDtos.DashboardResponse(scope.value, null, null, null, 0, 0d,
                     null, null, null,
                     new DashboardDtos.SolvedCounts(0, List.of()),
-                    new DashboardDtos.TimeAverages(null, List.of()),
                     new DashboardDtos.RightPanel(List.of(), List.of()));
         }
 
-        String scopeCondition = scope == DashboardScope.ALL ? "" : " and ae.list_id = :scopedListId ";
+        String templateVersion = scope == DashboardScope.ALL
+                ? ALL_SCOPE_TEMPLATE_VERSION
+                : scopedList.getTemplateVersion();
+        String scopeAttemptCondition = scope == DashboardScope.ALL ? "" : " and ae.list_id = :scopedListId ";
 
         OffsetDateTime lastActivityAt = toOffsetDateTime(singleResult("""
             select max(ae.updated_at)
             from attempt_entries ae
             where ae.user_id = :userId
-            """ + scopeCondition, userId, scopedListId));
+              and
+            """ + NON_EMPTY_ATTEMPT_PREDICATE + scopeAttemptCondition, userId, scopedListId));
 
         DashboardDtos.ProgressItem farthestProblem = toFirstProgress(query("""
             select p.neet250_id, p.order_index, p.title, p.category
             from problems p
-            where exists (
+            where p.template_version = :templateVersion
+              and exists (
                 select 1
-                from lists l
-                where l.user_id = :userId
-                  and l.template_version = p.template_version
-                """ + (scope == DashboardScope.ALL ? "" : " and l.id = :scopedListId ") + """
-                  and exists (
-                    select 1
-                    from attempt_entries ae
-                    where ae.user_id = :userId
-                      and ae.list_id = l.id
-                      and ae.neet250_id = p.neet250_id
-                      and ae.solved = true
-                  )
+                from attempt_entries ae
+            """ + solvedScopeJoin(scope) + """
+                where ae.user_id = :userId
+                  and ae.neet250_id = p.neet250_id
+                  and ae.solved = true
+            """ + solvedScopeWhere(scope) + """
               )
             order by p.order_index desc
             limit 1
-            """, userId, scopedListId));
+            """, userId, scopedListId, templateVersion));
 
         Integer farthestOrder = farthestProblem == null ? null : farthestProblem.orderIndex();
         String farthestCategory = farthestProblem == null ? null : farthestProblem.category();
@@ -105,117 +116,86 @@ public class DashboardService {
         List<DashboardDtos.ProgressItem> latestSolved = toProgressList(query("""
             select p.neet250_id, p.order_index, p.title, p.category
             from problems p
-            where exists (
+            where p.template_version = :templateVersion
+              and exists (
                 select 1
-                from lists l
-                where l.user_id = :userId
-                  and l.template_version = p.template_version
-                """ + (scope == DashboardScope.ALL ? "" : " and l.id = :scopedListId ") + """
-                  and exists (
-                    select 1
-                    from attempt_entries ae
-                    where ae.user_id = :userId
-                      and ae.list_id = l.id
-                      and ae.neet250_id = p.neet250_id
-                      and ae.solved = true
-                  )
+                from attempt_entries ae
+            """ + solvedScopeJoin(scope) + """
+                where ae.user_id = :userId
+                  and ae.neet250_id = p.neet250_id
+                  and ae.solved = true
+            """ + solvedScopeWhere(scope) + """
               )
             order by p.order_index desc
             limit 2
-            """, userId, scopedListId));
+            """, userId, scopedListId, templateVersion));
 
-        String panelTemplateVersion = scopedList != null ? scopedList.getTemplateVersion() : findFallbackTemplateVersion(userId, latestListId);
-        List<DashboardDtos.ProgressItem> nextUnsolved = panelTemplateVersion == null
-                ? List.of()
-                : toProgressList(query("""
-                    select p.neet250_id, p.order_index, p.title, p.category
-                    from problems p
-                    where p.template_version = :templateVersion
-                      and p.order_index > :farthestOrder
-                      and not exists (
-                        select 1
-                        from lists l
-                        join attempt_entries ae on ae.list_id = l.id and ae.user_id = :userId
-                        where l.user_id = :userId
-                          and l.template_version = p.template_version
-                          and ae.neet250_id = p.neet250_id
-                          and ae.solved = true
-                    """ + scopeCondition + """
-                      )
-                    order by p.order_index asc
-                    limit 4
-                    """, userId, scopedListId, panelTemplateVersion, farthestOrder == null ? 0 : farthestOrder));
+        List<DashboardDtos.ProgressItem> nextUnsolved = toProgressList(query("""
+            select p.neet250_id, p.order_index, p.title, p.category
+            from problems p
+            where p.template_version = :templateVersion
+              and p.order_index > :farthestOrder
+              and not exists (
+                select 1
+                from attempt_entries ae
+            """ + solvedScopeJoin(scope) + """
+                where ae.user_id = :userId
+                  and ae.neet250_id = p.neet250_id
+                  and ae.solved = true
+            """ + solvedScopeWhere(scope) + """
+              )
+            order by p.order_index asc
+            limit 4
+            """, userId, scopedListId, templateVersion, farthestOrder == null ? 0 : farthestOrder));
 
         long totalSolved = ((Number) singleResult("""
             select count(*)
             from (
-              select distinct l.template_version, ae.neet250_id
-              from attempt_entries ae
-              join lists l on l.id = ae.list_id
-              where ae.user_id = :userId and ae.solved = true
-              """ + scopeCondition + """
-            ) x
-            """, userId, scopedListId)).longValue();
-
-        List<DashboardDtos.CategorySolvedStats> solvedByCategory = toCategorySolvedStats(query("""
-            with solved_by_problem as (
-              select p.category, p.difficulty, p.neet250_id
+              select distinct p.neet250_id
               from problems p
-              join lists l on l.template_version = p.template_version
-              where l.user_id = :userId
+              where p.template_version = :templateVersion
                 and exists (
                   select 1
                   from attempt_entries ae
+            """ + solvedScopeJoin(scope) + """
                   where ae.user_id = :userId
-                    and ae.list_id = l.id
                     and ae.neet250_id = p.neet250_id
                     and ae.solved = true
-              """ + scopeCondition + """
+            """ + solvedScopeWhere(scope) + """
                 )
-              group by p.category, p.difficulty, p.neet250_id
-            ),
-            category_totals as (
+            ) solved
+            """, userId, scopedListId, templateVersion)).longValue();
+
+        List<DashboardDtos.CategorySolvedStats> solvedByCategory = toCategorySolvedStats(query("""
+            with category_totals as (
               select p.category, count(*) as total_in_category
               from problems p
-              where exists (
-                select 1
-                from lists l
-                where l.user_id = :userId
-                  and l.template_version = p.template_version
-              """ + (scopedListId != null ? " and l.id = :scopedListId " : "") + """
-              )
+              where p.template_version = :templateVersion
               group by p.category
+            ),
+            solved_by_problem as (
+              select p.category, p.neet250_id
+              from problems p
+              where p.template_version = :templateVersion
+                and exists (
+                  select 1
+                  from attempt_entries ae
+            """ + solvedScopeJoin(scope) + """
+                  where ae.user_id = :userId
+                    and ae.neet250_id = p.neet250_id
+                    and ae.solved = true
+            """ + solvedScopeWhere(scope) + """
+                )
+              group by p.category, p.neet250_id
             )
             select ct.category,
                    coalesce(count(sbp.neet250_id), 0) as solved_count,
-                   ct.total_in_category,
-                   coalesce(sum(case when sbp.difficulty = 'E' then 1 else 0 end), 0) as easy_solved,
-                   coalesce(sum(case when sbp.difficulty = 'M' then 1 else 0 end), 0) as medium_solved,
-                   coalesce(sum(case when sbp.difficulty = 'H' then 1 else 0 end), 0) as hard_solved
+                   ct.total_in_category
             from category_totals ct
             left join solved_by_problem sbp on sbp.category = ct.category
             group by ct.category, ct.total_in_category
             order by ct.category
-            """, userId, scopedListId));
-
-        Double overallAvgTime = toDouble(singleResult("""
-            select avg(ae.time_minutes)
-            from attempt_entries ae
-            where ae.user_id = :userId
-              and ae.time_minutes is not null
-            """ + scopeCondition, userId, scopedListId));
-
-        List<DashboardDtos.CategoryAvgTime> byCategoryAvgTime = toCategoryAvgTime(query("""
-            select p.category, avg(ae.time_minutes)
-            from attempt_entries ae
-            join lists l on l.id = ae.list_id
-            join problems p on p.template_version = l.template_version and p.neet250_id = ae.neet250_id
-            where ae.user_id = :userId
-              and ae.time_minutes is not null
-            """ + scopeCondition + """
-            group by p.category
-            order by p.category
-            """, userId, scopedListId));
+            """, userId, scopedListId, templateVersion));
 
         Set<LocalDate> attemptDays = new HashSet<>();
         for (Object value : query("""
@@ -223,17 +203,8 @@ public class DashboardService {
             from attempt_entries ae
             where ae.user_id = :userId
               and ae.date_solved is not null
-              and (
-                ae.solved is not null
-                or ae.time_minutes is not null
-                or ae.attempts is not null
-                or ae.confidence is not null
-                or ae.time_complexity is not null
-                or ae.space_complexity is not null
-                or nullif(trim(ae.notes), '') is not null
-                or nullif(trim(ae.problem_url), '') is not null
-              )
-            """ + scopeCondition + """
+              and
+            """ + NON_EMPTY_ATTEMPT_PREDICATE + scopeAttemptCondition + """
             order by ae.date_solved asc
             """, userId, scopedListId)) {
             attemptDays.add(toLocalDate(value));
@@ -254,20 +225,31 @@ public class DashboardService {
                 farthestOrder,
                 farthestProblem,
                 new DashboardDtos.SolvedCounts(totalSolved, solvedByCategory),
-                new DashboardDtos.TimeAverages(overallAvgTime, byCategoryAvgTime),
                 new DashboardDtos.RightPanel(latestSolved, nextUnsolved));
     }
 
-    private String findFallbackTemplateVersion(UUID userId, UUID latestListId) {
-        if (latestListId != null) {
-            return listRepository.findById(latestListId).map(ListEntity::getTemplateVersion).orElse(null);
-        }
-        List<ListEntity> lists = listRepository.findByUserIdOrderByUpdatedAtDesc(userId);
-        return lists.isEmpty() ? null : lists.get(0).getTemplateVersion();
+    private String solvedScopeJoin(DashboardScope scope) {
+        return scope == DashboardScope.ALL ? " join lists l on l.id = ae.list_id " : "";
+    }
+
+    private String solvedScopeWhere(DashboardScope scope) {
+        return scope == DashboardScope.ALL
+                ? " and l.user_id = :userId and l.template_version = :templateVersion "
+                : " and ae.list_id = :scopedListId ";
     }
 
     private List<?> query(String sql, UUID userId, UUID scopedListId) {
         Query query = entityManager.createNativeQuery(sql).setParameter("userId", userId);
+        if (scopedListId != null && sql.contains(":scopedListId")) {
+            query.setParameter("scopedListId", scopedListId);
+        }
+        return query.getResultList();
+    }
+
+    private List<?> query(String sql, UUID userId, UUID scopedListId, String templateVersion) {
+        Query query = entityManager.createNativeQuery(sql)
+                .setParameter("userId", userId)
+                .setParameter("templateVersion", templateVersion);
         if (scopedListId != null && sql.contains(":scopedListId")) {
             query.setParameter("scopedListId", scopedListId);
         }
@@ -287,6 +269,16 @@ public class DashboardService {
 
     private Object singleResult(String sql, UUID userId, UUID scopedListId) {
         Query query = entityManager.createNativeQuery(sql).setParameter("userId", userId);
+        if (scopedListId != null && sql.contains(":scopedListId")) {
+            query.setParameter("scopedListId", scopedListId);
+        }
+        return query.getSingleResult();
+    }
+
+    private Object singleResult(String sql, UUID userId, UUID scopedListId, String templateVersion) {
+        Query query = entityManager.createNativeQuery(sql)
+                .setParameter("userId", userId)
+                .setParameter("templateVersion", templateVersion);
         if (scopedListId != null && sql.contains(":scopedListId")) {
             query.setParameter("scopedListId", scopedListId);
         }
@@ -317,17 +309,7 @@ public class DashboardService {
         for (Object rowObj : rows) {
             Object[] row = (Object[]) rowObj;
             stats.add(new DashboardDtos.CategorySolvedStats((String) row[0], ((Number) row[1]).longValue(),
-                    ((Number) row[2]).longValue(), ((Number) row[3]).longValue(),
-                    ((Number) row[4]).longValue(), ((Number) row[5]).longValue()));
-        }
-        return stats;
-    }
-
-    private List<DashboardDtos.CategoryAvgTime> toCategoryAvgTime(List<?> rows) {
-        List<DashboardDtos.CategoryAvgTime> stats = new ArrayList<>();
-        for (Object rowObj : rows) {
-            Object[] row = (Object[]) rowObj;
-            stats.add(new DashboardDtos.CategoryAvgTime((String) row[0], toDouble(row[1])));
+                    ((Number) row[2]).longValue()));
         }
         return stats;
     }
@@ -373,13 +355,6 @@ public class DashboardService {
         } catch (Exception ignored) {
             return ZoneOffset.UTC;
         }
-    }
-
-    private Double toDouble(Object value) {
-        if (value == null) {
-            return null;
-        }
-        return ((Number) value).doubleValue();
     }
 
     private LocalDate toLocalDate(Object value) {

@@ -587,9 +587,6 @@ function HomePage() {
           <p>
             <strong>Total solved:</strong> {dashboard?.solvedCounts.totalSolved ?? 0}
           </p>
-          <p>
-            <strong>Overall avg time (min):</strong> {dashboard?.timeAverages.overallAvgTimeMinutes?.toFixed(2) ?? '—'}
-          </p>
           <label>
             Dashboard scope
             <select value={dashboardScope} onChange={(event) => setDashboardScope(event.target.value as 'latest' | 'list' | 'all')}>
@@ -601,7 +598,7 @@ function HomePage() {
           <ul>
             {(dashboard?.solvedCounts.byCategory ?? []).map((row) => (
               <li key={row.category}>
-                {row.category}: {row.solvedCount}/{row.totalInCategory} (E {row.easySolved}, M {row.mediumSolved}, H {row.hardSolved})
+                {row.category}: {row.solvedCount}/{row.totalInCategory}
               </li>
             ))}
           </ul>

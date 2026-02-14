@@ -351,38 +351,21 @@ components:
       enum: [latest, list, all]
     DashboardCategorySolvedStats:
       type: object
-      required: [category, solvedCount, totalInCategory, easySolved, mediumSolved, hardSolved]
+      required: [category, solvedCount, totalInCategory]
       properties:
         category: { type: string }
         solvedCount: { type: integer }
         totalInCategory: { type: integer }
-        easySolved: { type: integer }
-        mediumSolved: { type: integer }
-        hardSolved: { type: integer }
-    DashboardCategoryAvgTime:
-      type: object
-      required: [category, avgTimeMinutes]
-      properties:
-        category: { type: string }
-        avgTimeMinutes: { type: number, format: double, nullable: true }
     DashboardSolvedCounts:
       type: object
       required: [totalSolved, byCategory]
+      description: For scope=all, totals are based on templateVersion neet250.v1.
       properties:
         totalSolved: { type: integer }
         byCategory:
           type: array
           items:
             $ref: '#/components/schemas/DashboardCategorySolvedStats'
-    DashboardTimeAverages:
-      type: object
-      required: [overallAvgTimeMinutes, byCategoryAvgTimeMinutes]
-      properties:
-        overallAvgTimeMinutes: { type: number, format: double, nullable: true }
-        byCategoryAvgTimeMinutes:
-          type: array
-          items:
-            $ref: '#/components/schemas/DashboardCategoryAvgTime'
     DashboardRightPanel:
       type: object
       required: [latestSolved, nextUnsolved]
@@ -398,7 +381,7 @@ components:
     Dashboard:
       type: object
       description: Nullable progress fields are null for new users with no list/attempt activity yet.
-      required: [scope, latestListId, listId, lastActivityAt, streakCurrent, streakAverage, farthestCategory, farthestOrderIndex, farthestProblem, solvedCounts, timeAverages, rightPanel]
+      required: [scope, latestListId, listId, lastActivityAt, streakCurrent, streakAverage, farthestCategory, farthestOrderIndex, farthestProblem, solvedCounts, rightPanel]
       properties:
         scope:
           $ref: '#/components/schemas/DashboardScope'
@@ -415,8 +398,6 @@ components:
           nullable: true
         solvedCounts:
           $ref: '#/components/schemas/DashboardSolvedCounts'
-        timeAverages:
-          $ref: '#/components/schemas/DashboardTimeAverages'
         rightPanel:
           $ref: '#/components/schemas/DashboardRightPanel'
     ProgressProblem:
