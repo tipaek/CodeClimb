@@ -70,12 +70,12 @@ class DashboardRightPanelTest {
         createAttempt(token, listId, 2, false);
 
         JsonNode dashboard = getDashboard(token);
-        assertThat(dashboard.get("latestSolved")).hasSize(0);
-        assertThat(dashboard.get("nextUnsolved")).hasSize(4);
-        assertThat(dashboard.at("/nextUnsolved/0/orderIndex").asInt()).isEqualTo(1);
-        assertThat(dashboard.at("/nextUnsolved/1/orderIndex").asInt()).isEqualTo(2);
-        assertThat(dashboard.at("/nextUnsolved/2/orderIndex").asInt()).isEqualTo(3);
-        assertThat(dashboard.at("/nextUnsolved/3/orderIndex").asInt()).isEqualTo(4);
+        assertThat(dashboard.at("/rightPanel/latestSolved")).hasSize(0);
+        assertThat(dashboard.at("/rightPanel/nextUnsolved")).hasSize(4);
+        assertThat(dashboard.at("/rightPanel/nextUnsolved/0/orderIndex").asInt()).isEqualTo(1);
+        assertThat(dashboard.at("/rightPanel/nextUnsolved/1/orderIndex").asInt()).isEqualTo(2);
+        assertThat(dashboard.at("/rightPanel/nextUnsolved/2/orderIndex").asInt()).isEqualTo(3);
+        assertThat(dashboard.at("/rightPanel/nextUnsolved/3/orderIndex").asInt()).isEqualTo(4);
     }
 
     @Test
@@ -87,13 +87,13 @@ class DashboardRightPanelTest {
         createAttempt(token, listId, 5, true);
 
         JsonNode dashboard = getDashboard(token);
-        assertThat(dashboard.at("/farthestSolved/orderIndex").asInt()).isEqualTo(5);
-        assertThat(dashboard.at("/latestSolved/0/orderIndex").asInt()).isEqualTo(5);
-        assertThat(dashboard.at("/latestSolved/1/orderIndex").asInt()).isEqualTo(2);
-        assertThat(dashboard.at("/nextUnsolved/0/orderIndex").asInt()).isEqualTo(6);
-        assertThat(dashboard.at("/nextUnsolved/1/orderIndex").asInt()).isEqualTo(7);
-        assertThat(dashboard.at("/nextUnsolved/2/orderIndex").asInt()).isEqualTo(8);
-        assertThat(dashboard.at("/nextUnsolved/3/orderIndex").asInt()).isEqualTo(9);
+        assertThat(dashboard.at("/farthestProblem/orderIndex").asInt()).isEqualTo(5);
+        assertThat(dashboard.at("/rightPanel/latestSolved/0/orderIndex").asInt()).isEqualTo(5);
+        assertThat(dashboard.at("/rightPanel/latestSolved/1/orderIndex").asInt()).isEqualTo(2);
+        assertThat(dashboard.at("/rightPanel/nextUnsolved/0/orderIndex").asInt()).isEqualTo(6);
+        assertThat(dashboard.at("/rightPanel/nextUnsolved/1/orderIndex").asInt()).isEqualTo(7);
+        assertThat(dashboard.at("/rightPanel/nextUnsolved/2/orderIndex").asInt()).isEqualTo(8);
+        assertThat(dashboard.at("/rightPanel/nextUnsolved/3/orderIndex").asInt()).isEqualTo(9);
     }
 
 
@@ -108,22 +108,77 @@ class DashboardRightPanelTest {
 
 
     @Test
-    void solvedAttemptWithDateStillReturnsDashboard() throws Exception {
-        String token = signupAndGetToken("dashboard-date@example.com");
+    void streakCurrentCountsConsecutiveDaysEndingToday() throws Exception {
+        String token = signupAndGetToken("dashboard-streak-1@example.com");
         UUID listId = createList(token, "C");
-        createAttemptWithDate(token, listId, 1, LocalDate.now().toString());
+        createAttemptWithDate(token, listId, 1, LocalDate.now().minusDays(2).toString());
+        createAttemptWithDate(token, listId, 2, LocalDate.now().minusDays(1).toString());
+        createAttemptWithDate(token, listId, 3, LocalDate.now().toString());
 
         JsonNode dashboard = getDashboard(token);
-        assertThat(dashboard.get("streakCurrent").asInt()).isGreaterThanOrEqualTo(1);
+        assertThat(dashboard.get("streakCurrent").asInt()).isEqualTo(3);
     }
 
-    private JsonNode getDashboard(String token) throws Exception {
-        String body = mockMvc.perform(get("/dashboard").header("Authorization", "Bearer " + token))
+    @Test
+    void streakCurrentIsZeroWhenTodayHasNoAttemptDay() throws Exception {
+        String token = signupAndGetToken("dashboard-streak-2@example.com");
+        UUID listId = createList(token, "D");
+        createAttemptWithDate(token, listId, 1, LocalDate.now().minusDays(2).toString());
+        createAttemptWithDate(token, listId, 2, LocalDate.now().minusDays(1).toString());
+
+        JsonNode dashboard = getDashboard(token);
+        assertThat(dashboard.get("streakCurrent").asInt()).isEqualTo(0);
+        assertThat(dashboard.get("streakAverage").asDouble()).isEqualTo(2.0);
+    }
+
+    @Test
+    void streakAverageUsesAllRuns() throws Exception {
+        String token = signupAndGetToken("dashboard-streak-3@example.com");
+        UUID listId = createList(token, "E");
+        createAttemptWithDate(token, listId, 1, LocalDate.now().minusDays(6).toString());
+        createAttemptWithDate(token, listId, 2, LocalDate.now().minusDays(5).toString());
+        createAttemptWithDate(token, listId, 3, LocalDate.now().minusDays(2).toString());
+        createAttemptWithDate(token, listId, 4, LocalDate.now().minusDays(1).toString());
+
+        JsonNode dashboard = getDashboard(token);
+        assertThat(dashboard.get("streakAverage").asDouble()).isEqualTo(2.0);
+    }
+
+    @Test
+    void scopeLatestListAndAllBehaveCorrectly() throws Exception {
+        String token = signupAndGetToken("dashboard-scope@example.com");
+        UUID listA = createList(token, "A");
+        UUID listB = createList(token, "B");
+        createAttempt(token, listA, 1, true);
+        createAttempt(token, listB, 2, true);
+
+        JsonNode latest = getDashboard(token, "latest", null);
+        assertThat(latest.get("scope").asText()).isEqualTo("latest");
+        assertThat(latest.get("latestListId").asText()).isEqualTo(listB.toString());
+        assertThat(latest.at("/solvedCounts/totalSolved").asInt()).isEqualTo(1);
+
+        JsonNode listScoped = getDashboard(token, "list", listA);
+        assertThat(listScoped.get("scope").asText()).isEqualTo("list");
+        assertThat(listScoped.get("listId").asText()).isEqualTo(listA.toString());
+        assertThat(listScoped.at("/solvedCounts/totalSolved").asInt()).isEqualTo(1);
+
+        JsonNode all = getDashboard(token, "all", null);
+        assertThat(all.get("scope").asText()).isEqualTo("all");
+        assertThat(all.at("/solvedCounts/totalSolved").asInt()).isEqualTo(2);
+    }
+
+    private JsonNode getDashboard(String token, String scope, UUID listId) throws Exception {
+        String path = listId == null ? "/dashboard?scope=" + scope : "/dashboard?scope=" + scope + "&listId=" + listId;
+        String body = mockMvc.perform(get(path).header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
         return objectMapper.readTree(body);
+    }
+
+    private JsonNode getDashboard(String token) throws Exception {
+        return getDashboard(token, "latest", null);
     }
 
     private void createAttempt(String token, UUID listId, int neetId, boolean solved) throws Exception {

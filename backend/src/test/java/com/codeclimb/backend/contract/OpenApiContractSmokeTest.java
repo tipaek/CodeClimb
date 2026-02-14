@@ -94,7 +94,8 @@ class OpenApiContractSmokeTest {
         String body = mockMvc.perform(get("/dashboard").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.streakCurrent").isNumber())
-                .andExpect(jsonPath("$.perCategory").isArray())
+                .andExpect(jsonPath("$.scope").isString())
+                .andExpect(jsonPath("$.solvedCounts.byCategory").isArray())
                 .andReturn()
                 .getResponse()
                 .getContentAsString();
@@ -104,11 +105,14 @@ class OpenApiContractSmokeTest {
         assertNullableStringOrMissing(json, "lastActivityAt");
         assertNullableStringOrMissing(json, "farthestCategory");
         assertNullableNumberOrMissing(json, "farthestOrderIndex");
-        if (!json.has("latestSolved") || !json.get("latestSolved").isArray()) {
-            throw new AssertionError("latestSolved should be array");
+        if (!json.has("rightPanel") || !json.get("rightPanel").isObject()) {
+            throw new AssertionError("rightPanel should be object");
         }
-        if (!json.has("nextUnsolved") || !json.get("nextUnsolved").isArray()) {
-            throw new AssertionError("nextUnsolved should be array");
+        if (!json.at("/rightPanel/latestSolved").isArray()) {
+            throw new AssertionError("rightPanel.latestSolved should be array");
+        }
+        if (!json.at("/rightPanel/nextUnsolved").isArray()) {
+            throw new AssertionError("rightPanel.nextUnsolved should be array");
         }
     }
 

@@ -77,21 +77,44 @@ export type components = {
   problemUrl: (string) | null;
   updatedAt: (string) | null;
 };
-    CategoryStats: {
+    DashboardScope: "latest" | "list" | "all";
+    DashboardCategorySolvedStats: {
   category: string;
   solvedCount: number;
+  totalInCategory: number;
+  easySolved: number;
+  mediumSolved: number;
+  hardSolved: number;
+};
+    DashboardCategoryAvgTime: {
+  category: string;
   avgTimeMinutes: (number) | null;
 };
-    Dashboard: {
-  latestListId: (string) | null;
-  lastActivityAt: (string) | null;
-  streakCurrent: number;
-  farthestCategory: (string) | null;
-  farthestOrderIndex: (number) | null;
-  farthestSolved: (Record<string, unknown>) | null;
+    DashboardSolvedCounts: {
+  totalSolved: number;
+  byCategory: (components['schemas']['DashboardCategorySolvedStats'])[];
+};
+    DashboardTimeAverages: {
+  overallAvgTimeMinutes: (number) | null;
+  byCategoryAvgTimeMinutes: (components['schemas']['DashboardCategoryAvgTime'])[];
+};
+    DashboardRightPanel: {
   latestSolved: (components['schemas']['ProgressProblem'])[];
   nextUnsolved: (components['schemas']['ProgressProblem'])[];
-  perCategory: (components['schemas']['CategoryStats'])[];
+};
+    Dashboard: {
+  scope: components['schemas']['DashboardScope'];
+  latestListId: (string) | null;
+  listId: (string) | null;
+  lastActivityAt: (string) | null;
+  streakCurrent: number;
+  streakAverage: number;
+  farthestCategory: (string) | null;
+  farthestOrderIndex: (number) | null;
+  farthestProblem: (Record<string, unknown>) | null;
+  solvedCounts: components['schemas']['DashboardSolvedCounts'];
+  timeAverages: components['schemas']['DashboardTimeAverages'];
+  rightPanel: components['schemas']['DashboardRightPanel'];
 };
     ProgressProblem: {
   neet250Id: number;
@@ -104,4 +127,3 @@ export type components = {
 };
   };
 };
-
