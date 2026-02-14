@@ -71,7 +71,7 @@ class AttemptControllerTest {
         problem.setTitle("Two Sum");
         problem.setLeetcodeSlug("two-sum");
         problem.setCategory("Arrays");
-        problem.setDifficulty("E");
+        problem.setDifficulty('E');
         problem.setOrderIndex(1);
         problemRepository.save(problem);
 

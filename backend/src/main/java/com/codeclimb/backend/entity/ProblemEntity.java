@@ -30,7 +30,7 @@ public class ProblemEntity {
     private String category;
 
     @Column(nullable = false)
-    private String difficulty;
+    private Character difficulty;
 
     @Column(name = "order_index", nullable = false)
     private Integer orderIndex;

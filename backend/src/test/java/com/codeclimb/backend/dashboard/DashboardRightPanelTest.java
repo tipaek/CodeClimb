@@ -55,7 +55,7 @@ class DashboardRightPanelTest {
             problem.setTitle("Problem " + i);
             problem.setLeetcodeSlug("problem-" + i);
             problem.setCategory("Category");
-            problem.setDifficulty("E");
+            problem.setDifficulty('E');
             problem.setOrderIndex(i);
             problemRepository.save(problem);
         }

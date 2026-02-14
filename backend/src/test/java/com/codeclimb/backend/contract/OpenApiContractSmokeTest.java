@@ -55,7 +55,7 @@ class OpenApiContractSmokeTest {
         problem.setTitle("Two Sum");
         problem.setLeetcodeSlug("two-sum");
         problem.setCategory("Arrays & Hashing");
-        problem.setDifficulty("E");
+        problem.setDifficulty('E');
         problem.setOrderIndex(1);
         problemRepository.save(problem);
     }
