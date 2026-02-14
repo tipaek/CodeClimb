@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError } from './api';
 import { EMPTY_ATTEMPT, isEmptyAttemptPayload } from './attempts';
@@ -23,9 +23,7 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  if (token) {
-    return <Navigate to="/" replace />;
-  }
+  if (token) return <Navigate to="/" replace />;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -49,9 +47,7 @@ function LoginPage() {
         <button type="submit">Login</button>
       </form>
       {error && <p className="error">{error}</p>}
-      <p>
-        Need an account? <Link to="/signup">Signup</Link>
-      </p>
+      <p>Need an account? <Link to="/signup">Signup</Link></p>
     </main>
   );
 }
@@ -64,9 +60,7 @@ function SignupPage() {
   const [timezone, setTimezone] = useState('America/Chicago');
   const [error, setError] = useState<string | null>(null);
 
-  if (token) {
-    return <Navigate to="/" replace />;
-  }
+  if (token) return <Navigate to="/" replace />;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -90,9 +84,7 @@ function SignupPage() {
         <button type="submit">Create account</button>
       </form>
       {error && <p className="error">{error}</p>}
-      <p>
-        Already have an account? <Link to="/login">Login</Link>
-      </p>
+      <p>Already have an account? <Link to="/login">Login</Link></p>
     </main>
   );
 }
@@ -106,11 +98,11 @@ interface EditableRowState {
 
 function toDraft(problem: ProblemWithLatestAttempt): UpsertAttemptRequest {
   return {
-    solved: problem.solved,
-    dateSolved: problem.dateSolved,
-    timeMinutes: problem.timeMinutes,
-    notes: problem.notes,
-    problemUrl: problem.problemUrl,
+    solved: problem.latestAttempt?.solved ?? null,
+    dateSolved: problem.latestAttempt?.dateSolved ?? null,
+    timeMinutes: problem.latestAttempt?.timeMinutes ?? null,
+    notes: problem.latestAttempt?.notes ?? null,
+    problemUrl: problem.latestAttempt?.problemUrl ?? null,
   };
 }
 
@@ -127,6 +119,7 @@ function HomePage() {
   const [rows, setRows] = useState<Record<number, EditableRowState>>({});
   const [historyByNeetId, setHistoryByNeetId] = useState<Record<number, Attempt[]>>({});
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [error, setError] = useState<string | null>(null);
   const [newListName, setNewListName] = useState('');
   const timers = useRef<Record<number, number>>({});
@@ -157,6 +150,7 @@ function HomePage() {
       try {
         const items = await api.getProblems(token, selectedListId);
         setProblems(items);
+        setSelectedCategory('All');
         const nextRows: Record<number, EditableRowState> = {};
         items.forEach((problem) => {
           const draft = toDraft(problem);
@@ -256,6 +250,18 @@ function HomePage() {
     setNewListName('');
   };
 
+  const categories = useMemo(() => ['All', ...Array.from(new Set(problems.map((p) => p.category)))], [problems]);
+  const visibleProblems = useMemo(
+    () => (selectedCategory === 'All' ? problems : problems.filter((p) => p.category === selectedCategory)),
+    [problems, selectedCategory],
+  );
+
+  const jumpToProblem = (neetId: number) => {
+    setExpanded((prev) => ({ ...prev, [neetId]: true }));
+    void loadHistory(neetId);
+    document.getElementById(`problem-${neetId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   return (
     <main className="page">
       <header>
@@ -273,18 +279,31 @@ function HomePage() {
             <input value={newListName} onChange={(e) => setNewListName(e.target.value)} placeholder="New list name" />
             <button type="submit">Create</button>
           </form>
+          <ul>{lists.map((list) => (<li key={list.id}><button className={selectedListId === list.id ? 'active' : ''} onClick={() => setSelectedListId(list.id)}>{list.name}</button></li>))}</ul>
+          <hr />
+          <p>Farthest category: {dashboard?.farthestCategory ?? '—'}</p>
+          <p>Farthest progress: {dashboard?.farthestOrderIndex ?? 0}/250</p>
+          <h3>Latest solved</h3>
           <ul>
-            {lists.map((list) => (
-              <li key={list.id}>
-                <button className={selectedListId === list.id ? 'active' : ''} onClick={() => setSelectedListId(list.id)}>
-                  {list.name}
-                </button>
-              </li>
+            {(dashboard?.latestSolved ?? []).map((item) => (
+              <li key={`solved-${item.neet250Id}`}><button onClick={() => jumpToProblem(item.neet250Id)}>{item.orderIndex}. {item.title}</button></li>
+            ))}
+          </ul>
+          <h3>Next unsolved</h3>
+          <ul>
+            {(dashboard?.nextUnsolved ?? []).map((item) => (
+              <li key={`next-${item.neet250Id}`}><button onClick={() => jumpToProblem(item.neet250Id)}>{item.orderIndex}. {item.title}</button></li>
             ))}
           </ul>
         </aside>
         <section>
-          <h2>Problems</h2>
+          <h2>Problems ({visibleProblems.length})</h2>
+          <label>
+            Category:{' '}
+            <select value={selectedCategory} onChange={(e) => setSelectedCategory(e.target.value)}>
+              {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>
+          </label>
           <table>
             <thead>
               <tr>
@@ -293,58 +312,38 @@ function HomePage() {
               </tr>
             </thead>
             <tbody>
-              {problems.map((problem) => {
+              {visibleProblems.map((problem) => {
                 const row = rows[problem.neet250Id];
                 const draft = row?.draft ?? EMPTY_ATTEMPT;
                 return (
                   <Fragment key={problem.neet250Id}>
-                    <tr>
-                      <td>{problem.title}</td>
+                    <tr id={`problem-${problem.neet250Id}`}>
+                      <td>{problem.orderIndex}. {problem.title}</td>
                       <td>{problem.category}</td>
-                      <td>—</td>
-                      <td>{draft.problemUrl ? <a href={draft.problemUrl}>link</a> : '—'}</td>
+                      <td>{problem.difficulty}</td>
+                      <td>{problem.leetcodeSlug ? <a href={`https://leetcode.com/problems/${problem.leetcodeSlug}/`} target="_blank" rel="noreferrer">link</a> : '—'}</td>
                       <td>
                         <select value={draft.solved === null ? '' : String(draft.solved)} onChange={(e) => scheduleSave(problem.neet250Id, (d) => ({ ...d, solved: e.target.value === '' ? null : e.target.value === 'true' }))}>
-                          <option value="">—</option>
-                          <option value="true">Yes</option>
-                          <option value="false">No</option>
+                          <option value="">—</option><option value="true">Yes</option><option value="false">No</option>
                         </select>
                       </td>
-                      <td>—</td>
-                      <td>—</td>
-                      <td>
-                        <input type="number" value={draft.timeMinutes ?? ''} onChange={(e) => scheduleSave(problem.neet250Id, (d) => ({ ...d, timeMinutes: e.target.value ? Number(e.target.value) : null }))} />
-                      </td>
-                      <td>—</td>
-                      <td>—</td>
-                      <td>
-                        <input value={draft.notes ?? ''} onChange={(e) => scheduleSave(problem.neet250Id, (d) => ({ ...d, notes: e.target.value || null }))} />
-                      </td>
-                      <td>
-                        <input type="date" value={draft.dateSolved ?? ''} onChange={(e) => scheduleSave(problem.neet250Id, (d) => ({ ...d, dateSolved: e.target.value || null }))} />
-                      </td>
+                      <td>—</td><td>—</td>
+                      <td><input type="number" value={draft.timeMinutes ?? ''} onChange={(e) => scheduleSave(problem.neet250Id, (d) => ({ ...d, timeMinutes: e.target.value ? Number(e.target.value) : null }))} /></td>
+                      <td>—</td><td>—</td>
+                      <td><input value={draft.notes ?? ''} onChange={(e) => scheduleSave(problem.neet250Id, (d) => ({ ...d, notes: e.target.value || null }))} /></td>
+                      <td><input type="date" value={draft.dateSolved ?? ''} onChange={(e) => scheduleSave(problem.neet250Id, (d) => ({ ...d, dateSolved: e.target.value || null }))} /></td>
                       <td>
                         <button onClick={() => scheduleSave(problem.neet250Id, () => ({ ...EMPTY_ATTEMPT }))}>Clear</button>
                         <button onClick={() => {
                           const next = !expanded[problem.neet250Id];
                           setExpanded((prev) => ({ ...prev, [problem.neet250Id]: next }));
-                          if (next) {
-                            void loadHistory(problem.neet250Id);
-                          }
+                          if (next) void loadHistory(problem.neet250Id);
                         }}>Expand</button>
                         {row?.status === 'saving' && <small> saving…</small>}
                       </td>
                     </tr>
                     {expanded[problem.neet250Id] && (
-                      <tr>
-                        <td colSpan={13}>
-                          <ul>
-                            {(historyByNeetId[problem.neet250Id] ?? []).map((attempt) => (
-                              <li key={attempt.id}>{attempt.updatedAt}: solved={String(attempt.solved)} time={attempt.timeMinutes ?? '—'} notes={attempt.notes ?? '—'}</li>
-                            ))}
-                          </ul>
-                        </td>
-                      </tr>
+                      <tr><td colSpan={13}><ul>{(historyByNeetId[problem.neet250Id] ?? []).map((attempt) => (<li key={attempt.id}>{attempt.updatedAt}: solved={String(attempt.solved)} time={attempt.timeMinutes ?? '—'} notes={attempt.notes ?? '—'}</li>))}</ul></td></tr>
                     )}
                   </Fragment>
                 );
@@ -372,11 +371,7 @@ function DashboardPage() {
       <p>Last activity: {dashboard?.lastActivityAt ?? '—'}</p>
       <p>Current streak: {dashboard?.streakCurrent ?? 0}</p>
       <p>Farthest category: {dashboard?.farthestCategory ?? '—'}</p>
-      <ul>
-        {(dashboard?.perCategory ?? []).map((row) => (
-          <li key={row.category}>{row.category}: {row.solvedCount}</li>
-        ))}
-      </ul>
+      <ul>{(dashboard?.perCategory ?? []).map((row) => (<li key={row.category}>{row.category}: {row.solvedCount}</li>))}</ul>
       <Link to="/">Back to problems</Link>
     </main>
   );

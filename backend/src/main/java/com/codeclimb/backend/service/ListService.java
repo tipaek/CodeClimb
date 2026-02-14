@@ -3,8 +3,10 @@ package com.codeclimb.backend.service;
 import com.codeclimb.backend.dto.ListDtos;
 import com.codeclimb.backend.entity.ListEntity;
 import com.codeclimb.backend.repository.ListRepository;
+import com.codeclimb.backend.repository.ProblemRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,39 +14,48 @@ import java.util.UUID;
 public class ListService {
 
     private final ListRepository listRepository;
+    private final ProblemRepository problemRepository;
 
-    public ListService(ListRepository listRepository) {
+    public ListService(ListRepository listRepository, ProblemRepository problemRepository) {
         this.listRepository = listRepository;
+        this.problemRepository = problemRepository;
     }
 
     public ListDtos.ListResponse create(UUID userId, ListDtos.CreateListRequest request) {
+        if (!problemRepository.existsByTemplateVersion(request.templateVersion())) {
+            throw new BadRequestException("Unknown template version");
+        }
         ListEntity list = new ListEntity();
+        list.setId(UUID.randomUUID());
         list.setUserId(userId);
         list.setName(request.name());
         list.setTemplateVersion(request.templateVersion());
         list.setDeprecated(false);
-        return toResponse(listRepository.save(list));
+        list.setCreatedAt(OffsetDateTime.now());
+        list.setUpdatedAt(OffsetDateTime.now());
+        ListEntity saved = listRepository.save(list);
+        return toDto(saved);
     }
 
     public List<ListDtos.ListResponse> list(UUID userId) {
-        return listRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream().map(this::toResponse).toList();
+        return listRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream().map(this::toDto).toList();
     }
 
-    public ListDtos.ListResponse rename(UUID userId, UUID listId, ListDtos.RenameListRequest request) {
-        ListEntity list = listRepository.findByIdAndUserId(listId, userId)
-                .orElseThrow(() -> new BadRequestException("List not found"));
+    public ListDtos.ListResponse rename(UUID userId, UUID id, ListDtos.RenameListRequest request) {
+        ListEntity list = listRepository.findByIdAndUserId(id, userId).orElseThrow(() -> new BadRequestException("List not found"));
         list.setName(request.name());
-        return toResponse(listRepository.save(list));
+        list.setUpdatedAt(OffsetDateTime.now());
+        return toDto(listRepository.save(list));
     }
 
-    public ListDtos.ListResponse deprecate(UUID userId, UUID listId) {
-        ListEntity list = listRepository.findByIdAndUserId(listId, userId)
-                .orElseThrow(() -> new BadRequestException("List not found"));
+    public ListDtos.ListResponse deprecate(UUID userId, UUID id) {
+        ListEntity list = listRepository.findByIdAndUserId(id, userId).orElseThrow(() -> new BadRequestException("List not found"));
         list.setDeprecated(true);
-        return toResponse(listRepository.save(list));
+        list.setUpdatedAt(OffsetDateTime.now());
+        return toDto(listRepository.save(list));
     }
 
-    private ListDtos.ListResponse toResponse(ListEntity list) {
-        return new ListDtos.ListResponse(list.getId(), list.getName(), list.getTemplateVersion(), list.isDeprecated());
+    private ListDtos.ListResponse toDto(ListEntity entity) {
+        return new ListDtos.ListResponse(entity.getId(), entity.getName(), entity.getTemplateVersion(), entity.isDeprecated());
     }
 }

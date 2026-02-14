@@ -17,11 +17,20 @@ public class ProblemEntity {
     @Column(name = "neet250_id")
     private Integer neet250Id;
 
+    @Column(name = "template_version", nullable = false)
+    private String templateVersion;
+
     @Column(nullable = false)
     private String title;
 
+    @Column(name = "leetcode_slug")
+    private String leetcodeSlug;
+
     @Column(nullable = false)
     private String category;
+
+    @Column(nullable = false)
+    private Character difficulty;
 
     @Column(name = "order_index", nullable = false)
     private Integer orderIndex;
