@@ -483,6 +483,52 @@ function ProblemsPage() {
   const [lists, setLists] = useState<ListItem[]>([]);
   const [selectedListId, setSelectedListId] = useState('');
   const [problems, setProblems] = useState<ProblemWithLatestAttempt[]>([]);
+  const [search, setSearch] = useState('');
+  const [solvedFilter, setSolvedFilter] = useState<'all' | 'solved' | 'unsolved'>('all');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [expandedProblems, setExpandedProblems] = useState<Record<number, boolean>>({});
+  const [editorState, setEditorState] = useState<
+    Record<
+      number,
+      {
+        attemptId: string | null;
+        draft: UpsertAttemptRequest;
+        status: SaveState;
+        error: string | null;
+        history: Array<{ item: ProblemWithLatestAttempt['latestAttempt'] & { id: string; updatedAt?: string | null } }>;
+      }
+    >
+  >({});
+  const timeoutRefs = useRef<Record<number, ReturnType<typeof setTimeout> | undefined>>({});
+  const requestVersionRef = useRef<Record<number, number>>({});
+  const retryVersionRef = useRef<Record<number, number>>({});
+  const editorStateRef = useRef(editorState);
+
+  const demoProblems: ProblemWithLatestAttempt[] = [
+    { neet250Id: 1, orderIndex: 1, title: 'Two Sum', leetcodeSlug: 'two-sum', category: 'Arrays & Hashing', difficulty: 'Easy', latestAttempt: null },
+    { neet250Id: 2, orderIndex: 2, title: 'Contains Duplicate', leetcodeSlug: 'contains-duplicate', category: 'Arrays & Hashing', difficulty: 'Easy', latestAttempt: { solved: true } },
+    { neet250Id: 20, orderIndex: 1, title: 'Valid Parentheses', leetcodeSlug: 'valid-parentheses', category: 'Stack', difficulty: 'Easy', latestAttempt: null },
+    { neet250Id: 39, orderIndex: 4, title: 'Combination Sum', leetcodeSlug: 'combination-sum', category: 'Backtracking', difficulty: 'Medium', latestAttempt: null },
+  ];
+
+  useEffect(() => {
+    editorStateRef.current = editorState;
+  }, [editorState]);
+
+  const toAttemptDraft = (attempt: Record<string, unknown> | null | undefined): UpsertAttemptRequest => ({
+    ...EMPTY_ATTEMPT,
+    solved: typeof attempt?.solved === 'boolean' ? attempt.solved : null,
+    dateSolved: typeof attempt?.dateSolved === 'string' ? attempt.dateSolved : null,
+    timeMinutes: typeof attempt?.timeMinutes === 'number' ? attempt.timeMinutes : null,
+    attempts: typeof attempt?.attempts === 'number' ? attempt.attempts : null,
+    confidence: typeof attempt?.confidence === 'string' ? attempt.confidence : null,
+    timeComplexity: typeof attempt?.timeComplexity === 'string' ? attempt.timeComplexity : null,
+    spaceComplexity: typeof attempt?.spaceComplexity === 'string' ? attempt.spaceComplexity : null,
+    notes: typeof attempt?.notes === 'string' ? attempt.notes : null,
+    problemUrl: typeof attempt?.problemUrl === 'string' ? attempt.problemUrl : null,
+  });
 
   useEffect(() => {
     if (!token) {
@@ -502,43 +548,324 @@ function ProblemsPage() {
     if (!token || !selectedListId) {
       return;
     }
-    void api.getProblems(token, selectedListId).then(setProblems);
+    const loadProblems = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        setProblems(await api.getProblems(token, selectedListId));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load problems');
+      } finally {
+        setLoading(false);
+      }
+    };
+    void loadProblems();
   }, [token, selectedListId]);
 
+  const sourceProblems = token ? problems : demoProblems;
+
+  useEffect(() => {
+    setEditorState((current) => {
+      const next = { ...current };
+      for (const problem of sourceProblems) {
+        if (next[problem.neet250Id]) {
+          continue;
+        }
+        const latest = problem.latestAttempt as Record<string, unknown> | null;
+        next[problem.neet250Id] = {
+          attemptId: typeof latest?.id === 'string' ? latest.id : null,
+          draft: toAttemptDraft(latest),
+          status: 'idle',
+          error: null,
+          history: [],
+        };
+      }
+      return next;
+    });
+  }, [sourceProblems]);
+
+  const filteredProblems = useMemo(
+    () =>
+      sourceProblems.filter((problem) => {
+        const state = editorState[problem.neet250Id];
+        const solved = state?.draft.solved ?? ((problem.latestAttempt as Record<string, unknown> | null)?.solved as boolean | null) ?? null;
+        if (solvedFilter === 'solved' && solved !== true) {
+          return false;
+        }
+        if (solvedFilter === 'unsolved' && solved === true) {
+          return false;
+        }
+        if (!search.trim()) {
+          return true;
+        }
+        const query = search.trim().toLowerCase();
+        return problem.title.toLowerCase().includes(query) || problem.category.toLowerCase().includes(query);
+      }),
+    [editorState, search, solvedFilter, sourceProblems],
+  );
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, ProblemWithLatestAttempt[]>();
+    for (const problem of filteredProblems) {
+      const categoryProblems = map.get(problem.category) ?? [];
+      categoryProblems.push(problem);
+      map.set(problem.category, categoryProblems);
+    }
+    return Array.from(map.entries());
+  }, [filteredProblems]);
+
+  const scheduleSave = (problem: ProblemWithLatestAttempt, draft: UpsertAttemptRequest, options?: { immediate?: boolean; retry?: boolean }) => {
+    if (!token || !selectedListId) {
+      return;
+    }
+    const run = async (retry = false) => {
+      const current = editorStateRef.current[problem.neet250Id];
+      if (!current?.attemptId && isEmptyAttemptPayload(draft)) {
+        return;
+      }
+      const version = (requestVersionRef.current[problem.neet250Id] ?? 0) + 1;
+      requestVersionRef.current[problem.neet250Id] = version;
+      if (!retry) {
+        retryVersionRef.current[problem.neet250Id] = version;
+      }
+      setEditorState((prev) => ({
+        ...prev,
+        [problem.neet250Id]: { ...(prev[problem.neet250Id] ?? { attemptId: null, draft, history: [] }), draft, status: 'saving', error: null },
+      }));
+
+      try {
+        const attemptId = editorStateRef.current[problem.neet250Id]?.attemptId ?? null;
+        const saved = attemptId
+          ? await api.patchAttempt(token, attemptId, draft)
+          : await api.createAttempt(token, selectedListId, problem.neet250Id, draft);
+        if (requestVersionRef.current[problem.neet250Id] !== version) {
+          return;
+        }
+        setEditorState((prev) => ({
+          ...prev,
+          [problem.neet250Id]: {
+            ...(prev[problem.neet250Id] ?? { draft, history: [] }),
+            attemptId: saved.id,
+            draft,
+            status: 'idle',
+            error: null,
+            history: prev[problem.neet250Id]?.history ?? [],
+          },
+        }));
+      } catch (e) {
+        const apiError = e instanceof ApiError ? e : null;
+        if (!retry && apiError?.status === 0) {
+          window.setTimeout(() => {
+            if (retryVersionRef.current[problem.neet250Id] === version) {
+              void run(true);
+            }
+          }, 2000);
+          return;
+        }
+        if (apiError?.status === 400 && !editorStateRef.current[problem.neet250Id]?.attemptId && isEmptyAttemptPayload(draft)) {
+          setEditorState((prev) => ({
+            ...prev,
+            [problem.neet250Id]: { ...(prev[problem.neet250Id] ?? { attemptId: null, draft, history: [] }), draft, status: 'idle', error: null },
+          }));
+          return;
+        }
+        if (requestVersionRef.current[problem.neet250Id] !== version) {
+          return;
+        }
+        setEditorState((prev) => ({
+          ...prev,
+          [problem.neet250Id]: {
+            ...(prev[problem.neet250Id] ?? { attemptId: null, draft, history: [] }),
+            draft,
+            status: 'error',
+            error: e instanceof Error ? e.message : 'Couldn’t save. Retry',
+          },
+        }));
+      }
+    };
+
+    if (options?.immediate) {
+      void run(options.retry);
+      return;
+    }
+    if (timeoutRefs.current[problem.neet250Id]) {
+      window.clearTimeout(timeoutRefs.current[problem.neet250Id]);
+    }
+    timeoutRefs.current[problem.neet250Id] = window.setTimeout(() => {
+      void run(options?.retry);
+    }, 700);
+  };
+
+  const updateDraft = (problem: ProblemWithLatestAttempt, update: Partial<UpsertAttemptRequest>, immediate = false) => {
+    const current = editorState[problem.neet250Id] ?? { attemptId: null, draft: EMPTY_ATTEMPT, status: 'idle' as SaveState, error: null, history: [] };
+    const nextDraft = { ...current.draft, ...update };
+    setEditorState((prev) => ({ ...prev, [problem.neet250Id]: { ...current, draft: nextDraft, status: immediate ? current.status : 'saving', error: null } }));
+    if (!token) {
+      openAuthCta();
+      return;
+    }
+    scheduleSave(problem, nextDraft, { immediate });
+  };
+
+  const loadHistory = async (problem: ProblemWithLatestAttempt) => {
+    if (!token || !selectedListId) {
+      return;
+    }
+    const history = await api.getAttemptsHistory(token, selectedListId, problem.neet250Id);
+    setEditorState((prev) => ({
+      ...prev,
+      [problem.neet250Id]: {
+        ...(prev[problem.neet250Id] ?? { attemptId: null, draft: EMPTY_ATTEMPT, status: 'idle', error: null }),
+        history: history.map((item) => ({ item })),
+      },
+    }));
+  };
+
   return (
-    <section className="stack-24">
+    <section className="stack-24 problems-page">
       <div>
         <h1>Problems</h1>
-        <p className="muted">Practice queue and recent attempt snapshots.</p>
+        <p className="muted">Focused practice by category with compact attempt tracking.</p>
       </div>
-      {token ? (
-        <Card>
-          <h2>List</h2>
-          <Select value={selectedListId} onChange={(event) => setSelectedListId(event.target.value)}>
+      <Card>
+        <div className="problems-toolbar">
+          <Select value={selectedListId} onChange={(event) => setSelectedListId(event.target.value)} onClick={!token ? openAuthCta : undefined} disabled={token && lists.length === 0}>
             <option value="">Select a list</option>
             {lists.map((list) => (
               <option key={list.id} value={list.id}>
                 {list.name}
               </option>
             ))}
+            {!token ? <option value="demo">Demo list</option> : null}
           </Select>
-        </Card>
-      ) : null}
-      <div className="card-grid">
-        {(token
-          ? problems.slice(0, 6)
-          : [
-              { neet250Id: 1, title: 'Two Sum', category: 'Arrays & Hashing', latestAttempt: null },
-              { neet250Id: 2, title: 'Valid Parentheses', category: 'Stack', latestAttempt: null },
-            ]
-        ).map((problem) => (
-          <Card key={problem.neet250Id}>
-            <h2>{problem.title}</h2>
-            <p className="muted">{problem.category}</p>
-            <Button onClick={token ? undefined : openAuthCta}>Open problem</Button>
-          </Card>
-        ))}
-      </div>
+          <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title or category" onClick={!token ? openAuthCta : undefined} />
+          <Select value={solvedFilter} onChange={(event) => setSolvedFilter(event.target.value as 'all' | 'solved' | 'unsolved')} onClick={!token ? openAuthCta : undefined}>
+            <option value="all">All</option>
+            <option value="solved">Solved</option>
+            <option value="unsolved">Unsolved</option>
+          </Select>
+        </div>
+        {loading ? <p className="muted">Loading problems…</p> : null}
+        {error ? <p className="error">{error}</p> : null}
+        <div className="problems-accordion">
+          {grouped.map(([category, items]) => {
+            const solvedCount = items.filter((problem) => (editorState[problem.neet250Id]?.draft.solved ?? (problem.latestAttempt as Record<string, unknown> | null)?.solved) === true).length;
+            const open = expandedCategories[category] ?? true;
+            return (
+              <article className="category-card" key={category}>
+                <button type="button" className="category-header" onClick={() => setExpandedCategories((prev) => ({ ...prev, [category]: !open }))}>
+                  <span>{category}</span>
+                  <span className="muted">{solvedCount}/{items.length} solved</span>
+                </button>
+                {open ? (
+                  <div className="problem-list-stack">
+                    {items.map((problem) => {
+                      const state = editorState[problem.neet250Id] ?? { attemptId: null, draft: EMPTY_ATTEMPT, status: 'idle' as SaveState, error: null, history: [] };
+                      const drawerOpen = expandedProblems[problem.neet250Id] ?? false;
+                      const difficultyTone = problem.difficulty === 'Easy' ? 'success' : problem.difficulty === 'Hard' ? 'warning' : 'default';
+                      return (
+                        <article className="problem-row-card" key={problem.neet250Id}>
+                          <div className="problem-row-main">
+                            <button
+                              type="button"
+                              className={`solved-toggle ${state.draft.solved ? 'is-on' : ''}`}
+                              aria-pressed={state.draft.solved === true}
+                              onClick={() => updateDraft(problem, { solved: state.draft.solved === true ? false : true, dateSolved: state.draft.solved === true ? null : new Date().toISOString().slice(0, 10) }, true)}
+                            >
+                              ✓
+                            </button>
+                            <div className="problem-row-title">
+                              <strong>{problem.title}</strong>
+                              <a href={`https://leetcode.com/problems/${problem.leetcodeSlug}/`} target="_blank" rel="noreferrer" onClick={!token ? (e) => { e.preventDefault(); openAuthCta(); } : undefined}>
+                                Solve
+                              </a>
+                            </div>
+                            <Pill tone={difficultyTone}>{problem.difficulty}</Pill>
+                            <Button
+                              variant="ghost"
+                              onClick={() => {
+                                if (!drawerOpen) {
+                                  void loadHistory(problem);
+                                }
+                                setExpandedProblems((prev) => ({ ...prev, [problem.neet250Id]: !drawerOpen }));
+                              }}
+                            >
+                              {drawerOpen ? 'Hide details' : 'Details'}
+                            </Button>
+                          </div>
+                          {drawerOpen ? (
+                            <div className="details-drawer">
+                              <div className="drawer-fields">
+                                <Input type="date" value={state.draft.dateSolved ?? ''} onChange={(event) => updateDraft(problem, { dateSolved: event.target.value || null })} />
+                                <Input type="number" placeholder="Minutes" value={state.draft.timeMinutes ?? ''} onChange={(event) => updateDraft(problem, { timeMinutes: event.target.value ? Number(event.target.value) : null })} />
+                                <Input type="number" placeholder="Attempts" value={state.draft.attempts ?? ''} onChange={(event) => updateDraft(problem, { attempts: event.target.value ? Number(event.target.value) : null })} />
+                                <Input placeholder="Time complexity" value={state.draft.timeComplexity ?? ''} onChange={(event) => updateDraft(problem, { timeComplexity: event.target.value || null })} />
+                                <Input placeholder="Space complexity" value={state.draft.spaceComplexity ?? ''} onChange={(event) => updateDraft(problem, { spaceComplexity: event.target.value || null })} />
+                                <Select value={state.draft.confidence ?? ''} onChange={(event) => updateDraft(problem, { confidence: event.target.value || null })}>
+                                  <option value="">Confidence</option>
+                                  <option value="LOW">Low</option>
+                                  <option value="MEDIUM">Medium</option>
+                                  <option value="HIGH">High</option>
+                                </Select>
+                                <Input className="drawer-full" placeholder="Problem URL" value={state.draft.problemUrl ?? ''} onChange={(event) => updateDraft(problem, { problemUrl: event.target.value || null })} />
+                                <textarea className="cc-input drawer-full drawer-textarea" placeholder="Notes" value={state.draft.notes ?? ''} onChange={(event) => updateDraft(problem, { notes: event.target.value || null })} />
+                              </div>
+                              <div className="drawer-status-row">
+                                {state.status === 'saving' ? <span className="muted">Saving...</span> : null}
+                                {state.status === 'error' ? (
+                                  <button className="inline-retry" onClick={() => scheduleSave(problem, state.draft, { immediate: true, retry: true })}>
+                                    Couldn’t save. Retry
+                                  </button>
+                                ) : null}
+                              </div>
+                              <div className="history-panel">
+                                <h3>History</h3>
+                                <ul className="history-list">
+                                  {state.history.map(({ item }) => {
+                                    const attempt = item as Record<string, unknown>;
+                                    return (
+                                      <li key={String(attempt.id)}>
+                                        <div>
+                                          <strong>{String(attempt.updatedAt ?? 'Recent attempt')}</strong>
+                                          <p className="muted">{attempt.notes ? String(attempt.notes) : 'No notes'}</p>
+                                        </div>
+                                        <div className="history-actions">
+                                          <Button variant="ghost" onClick={() => setEditorState((prev) => ({ ...prev, [problem.neet250Id]: { ...prev[problem.neet250Id], attemptId: String(attempt.id), draft: toAttemptDraft(attempt) } }))}>
+                                            Edit
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            onClick={async () => {
+                                              if (!token) {
+                                                openAuthCta();
+                                                return;
+                                              }
+                                              await api.deleteAttempt(token, String(attempt.id));
+                                              await loadHistory(problem);
+                                            }}
+                                          >
+                                            Delete
+                                          </Button>
+                                        </div>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </div>
+                            </div>
+                          ) : null}
+                        </article>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+        {!token ? <p className="muted">Demo mode: interactions open login CTA modal.</p> : null}
+        {token && !selectedListId ? <p className="error">Select a list to load and save attempts.</p> : null}
+      </Card>
       {authCtaModal}
     </section>
   );
