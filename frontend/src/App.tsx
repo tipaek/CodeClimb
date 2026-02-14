@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError } from './api';
 import { useAuth } from './auth';
 import { EMPTY_ATTEMPT, isEmptyAttemptPayload } from './attempts';
@@ -17,6 +17,10 @@ function AuthGuard({ children }: { children: ReactNode }) {
 function AppShell({ children }: { children: ReactNode }) {
   const { theme, setTheme } = useTheme();
   const { token, setToken } = useAuth();
+  const location = useLocation();
+  const isProblemsRoute = location.pathname === '/problems';
+  const isLoginRoute = location.pathname === '/login';
+  const isSignupRoute = location.pathname === '/signup';
 
   return (
     <div className="app-shell">
@@ -25,7 +29,7 @@ function AppShell({ children }: { children: ReactNode }) {
           CodeClimb
         </Link>
         <nav className="top-nav" aria-label="Primary">
-          <Link to="/problems">Problems</Link>
+          {isProblemsRoute ? <Link to="/">Dashboard</Link> : <Link to="/problems">Problems</Link>}
           <Select
             aria-label="Theme selector"
             value={theme}
@@ -42,7 +46,10 @@ function AppShell({ children }: { children: ReactNode }) {
               Logout
             </Button>
           ) : (
-            <Link to="/login">Login</Link>
+            <>
+              {!isLoginRoute ? <Link to="/login">Login</Link> : null}
+              {!isSignupRoute ? <Link to="/signup">Create account</Link> : null}
+            </>
           )}
         </nav>
       </header>
@@ -364,16 +371,6 @@ function DashboardPage() {
             <h2>Progress</h2>
             {level ? <Pill tone="success">Level {level.number}: {level.label}</Pill> : <p className="muted">Level —</p>}
           </div>
-          <div className="mini-stats">
-            <div className="mini-stat-tile">
-              <span className="mini-stat-value">{token ? dashboard?.streakCurrent ?? 0 : 6}</span>
-              <span className="mini-stat-label">current streak</span>
-            </div>
-            <div className="mini-stat-tile">
-              <span className="mini-stat-value">{token ? dashboard?.streakAverage ?? 0 : 3.1}</span>
-              <span className="mini-stat-label">average streak</span>
-            </div>
-          </div>
           <div className="mini-calendar-wrap">
             <div className="mini-calendar-head">
               <strong>{currentMonthLabel}</strong>
@@ -397,6 +394,16 @@ function DashboardPage() {
                   </span>
                 );
               })}
+            </div>
+          </div>
+          <div className="mini-stats">
+            <div className="mini-stat-tile">
+              <span className="mini-stat-value">{token ? dashboard?.streakCurrent ?? 0 : 6}</span>
+              <span className="mini-stat-label">current streak</span>
+            </div>
+            <div className="mini-stat-tile">
+              <span className="mini-stat-value">{token ? dashboard?.streakAverage ?? 0 : 3.1}</span>
+              <span className="mini-stat-label">average streak</span>
             </div>
           </div>
         </Card>

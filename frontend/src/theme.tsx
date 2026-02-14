@@ -3,9 +3,8 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 const THEME_STORAGE_KEY = 'codeclimb.theme';
 
 export const THEME_OPTIONS = [
-  { id: 'salt-pepper', label: 'Salt & Pepper' },
+  { id: 'wisteria-bloom', label: 'Wistiria Bloom' },
   { id: 'fresh-peach', label: 'Fresh Peach' },
-  { id: 'wisteria-bloom', label: 'Wisteria Bloom' },
   { id: 'night-sands', label: 'Night Sands' },
 ] as const;
 
@@ -21,7 +20,7 @@ const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<ThemeId>(() => {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    return THEME_OPTIONS.some((item) => item.id === stored) ? (stored as ThemeId) : 'salt-pepper';
+    return THEME_OPTIONS.some((item) => item.id === stored) ? (stored as ThemeId) : 'wisteria-bloom';
   });
 
   useEffect(() => {
