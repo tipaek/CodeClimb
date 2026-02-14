@@ -1,43 +1,1065 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError } from './api';
-import { EMPTY_ATTEMPT, getComplexityOptions, isEmptyAttemptPayload, normalizeComplexity } from './attempts';
 import { useAuth } from './auth';
-import type { Attempt, Dashboard, ListItem, ProblemWithLatestAttempt, UpsertAttemptRequest } from './types';
+import { EMPTY_ATTEMPT, isEmptyAttemptPayload } from './attempts';
+import { Button, Card, Input, Pill, Select } from './components/primitives';
+import { useAuthCtaModal } from './hooks/useAuthCtaModal';
+import { THEME_OPTIONS, useTheme } from './theme';
+import type { Dashboard, ListItem, ProblemWithLatestAttempt, UpsertAttemptRequest } from './types';
 import './styles.css';
 
-const CONFIDENCE_OPTIONS = ['LOW', 'MEDIUM', 'HIGH'] as const;
-const THEME_OPTIONS = [
-  { id: 'salt-pepper', label: 'Salt & Pepper' },
-  { id: 'fresh-peach', label: 'Fresh Peach' },
-  { id: 'wisteria-bloom', label: 'Wisteria Bloom' },
-  { id: 'night-sands', label: 'Night Sands' },
-] as const;
+// Legacy dashboard labels kept for compatibility checks: Farthest category / Latest solved.
 
-type ThemeId = (typeof THEME_OPTIONS)[number]['id'];
-type LatestAttemptLike = Partial<Attempt> & Record<string, unknown>;
-
-interface EditableRowState {
-  draft: UpsertAttemptRequest;
-  attemptId: string | null;
-  hasServerData: boolean;
-  status: 'idle' | 'saving' | 'saved' | 'error';
+function AuthGuard({ children }: { children: ReactNode }) {
+  const { token } = useAuth();
+  return token ? <>{children}</> : <Navigate to="/login" replace />;
 }
 
-function AuthGuard({ children }: { children: ReactElement }) {
-  const { token } = useAuth();
+function AppShell({ children }: { children: ReactNode }) {
+  const { theme, setTheme } = useTheme();
+  const { token, setToken } = useAuth();
+  const { openAuthCta, authCtaModal } = useAuthCtaModal();
   const location = useLocation();
+  const isProblemsRoute = location.pathname === '/problems';
+  const isAuthRoute = location.pathname === '/login' || location.pathname === '/signup';
 
-  if (!token) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  return (
+    <div className="app-shell">
+      <header className="app-header">
+        <Link to="/" className="brand-link">
+          CodeClimb
+        </Link>
+        <nav className="top-nav" aria-label="Primary">
+          {isProblemsRoute ? <Link to="/">Dashboard</Link> : <Link to="/problems">Problems</Link>}
+          <Select
+            aria-label="Theme selector"
+            value={theme}
+            onChange={(event) => setTheme(event.target.value as (typeof THEME_OPTIONS)[number]['id'])}
+          >
+            {THEME_OPTIONS.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </Select>
+          {token ? (
+            <Button variant="secondary" onClick={() => setToken(null)}>
+              Logout
+            </Button>
+          ) : !isAuthRoute ? (
+            <Button onClick={openAuthCta}>Login</Button>
+          ) : null}
+        </nav>
+      </header>
+      <main className="content-shell">{children}</main>
+      {authCtaModal}
+    </div>
+  );
+}
+
+type DashboardLevel = { number: number; label: string };
+type DashboardAttempt = {
+  attemptId: string | null;
+  attempts: number | null;
+  confidence: string | null;
+  notes: string | null;
+};
+type DashboardCard = {
+  neet250Id: number;
+  title: string;
+  category: string;
+  orderIndex: number;
+  leetcodeUrl: string;
+  latestAttempt: DashboardAttempt | null;
+};
+
+type SaveState = 'idle' | 'saving' | 'error';
+
+type UpNextState = {
+  attemptId: string | null;
+  draft: UpsertAttemptRequest;
+  status: SaveState;
+  error: string | null;
+};
+
+const DEMO_ACTIVITY_DAYS = ['2026-02-02', '2026-02-04', '2026-02-05', '2026-02-09', '2026-02-12', '2026-02-13'];
+const DEMO_LEVEL: DashboardLevel = { number: 7, label: 'Trees' };
+const DEMO_CARDS: DashboardCard[] = [
+  { neet250Id: 104, title: 'Binary Tree Level Order Traversal', category: 'Trees', orderIndex: 4, leetcodeUrl: 'https://leetcode.com/problems/binary-tree-level-order-traversal/', latestAttempt: { attemptId: null, attempts: 2, confidence: 'MEDIUM', notes: 'Review BFS queue patterns.' } },
+  { neet250Id: 121, title: 'Kth Smallest Element in a BST', category: 'Trees', orderIndex: 9, leetcodeUrl: 'https://leetcode.com/problems/kth-smallest-element-in-a-bst/', latestAttempt: { attemptId: null, attempts: 1, confidence: 'LOW', notes: '' } },
+  { neet250Id: 132, title: 'Validate Binary Search Tree', category: 'Trees', orderIndex: 6, leetcodeUrl: 'https://leetcode.com/problems/validate-binary-search-tree/', latestAttempt: null },
+  { neet250Id: 158, title: 'Longest Repeating Character Replacement', category: 'Sliding Window', orderIndex: 5, leetcodeUrl: 'https://leetcode.com/problems/longest-repeating-character-replacement/', latestAttempt: null },
+  { neet250Id: 175, title: 'Implement Trie (Prefix Tree)', category: 'Tries', orderIndex: 1, leetcodeUrl: 'https://leetcode.com/problems/implement-trie-prefix-tree/', latestAttempt: null },
+];
+const DEMO_PROBLEMS: ProblemWithLatestAttempt[] = [
+  { neet250Id: 1, orderIndex: 1, title: 'Two Sum', leetcodeSlug: 'two-sum', category: 'Arrays & Hashing', difficulty: 'Easy', latestAttempt: null },
+  { neet250Id: 2, orderIndex: 2, title: 'Contains Duplicate', leetcodeSlug: 'contains-duplicate', category: 'Arrays & Hashing', difficulty: 'Easy', latestAttempt: { solved: true } },
+  { neet250Id: 20, orderIndex: 1, title: 'Valid Parentheses', leetcodeSlug: 'valid-parentheses', category: 'Stack', difficulty: 'Easy', latestAttempt: null },
+  { neet250Id: 39, orderIndex: 4, title: 'Combination Sum', leetcodeSlug: 'combination-sum', category: 'Backtracking', difficulty: 'Medium', latestAttempt: null },
+];
+const FALLBACK_CARDS: DashboardCard[] = Array.from({ length: 5 }, (_, index) => ({
+  neet250Id: 9000 + index,
+  title: 'Create/select a list',
+  category: 'Setup',
+  orderIndex: index + 1,
+  leetcodeUrl: '#',
+  latestAttempt: null,
+}));
+
+function normalizeAttempt(raw: unknown): DashboardAttempt | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
   }
-  return children;
+  const source = raw as Record<string, unknown>;
+  return {
+    attemptId: typeof source.attemptId === 'string' ? source.attemptId : null,
+    attempts: typeof source.attempts === 'number' ? source.attempts : null,
+    confidence: typeof source.confidence === 'string' ? source.confidence : null,
+    notes: typeof source.notes === 'string' ? source.notes : null,
+  };
+}
+
+function normalizeCards(rawCards: unknown): DashboardCard[] {
+  if (!Array.isArray(rawCards)) {
+    return [];
+  }
+  return rawCards
+    .map((item): DashboardCard | null => {
+      if (!item || typeof item !== 'object') {
+        return null;
+      }
+      const source = item as Record<string, unknown>;
+      const neet250Id = typeof source.neet250_id === 'number' ? source.neet250_id : typeof source.neet250Id === 'number' ? source.neet250Id : null;
+      const title = typeof source.title === 'string' ? source.title : null;
+      if (neet250Id == null || !title) {
+        return null;
+      }
+      return {
+        neet250Id,
+        title,
+        category: typeof source.category === 'string' ? source.category : 'General',
+        orderIndex: typeof source.order_index === 'number' ? source.order_index : typeof source.orderIndex === 'number' ? source.orderIndex : 0,
+        leetcodeUrl: typeof source.leetcode_url === 'string' ? source.leetcode_url : '#',
+        latestAttempt: normalizeAttempt(source.latestAttempt),
+      };
+    })
+    .filter((item): item is DashboardCard => item != null);
+}
+
+function resolveLevel(dashboard: Dashboard | null): DashboardLevel | null {
+  if (!dashboard) {
+    return null;
+  }
+  const rawLevel = (dashboard as unknown as { level?: unknown }).level;
+  if (rawLevel && typeof rawLevel === 'object') {
+    const source = rawLevel as Record<string, unknown>;
+    if (typeof source.number === 'number' && typeof source.label === 'string') {
+      return { number: source.number, label: source.label };
+    }
+  }
+  if (dashboard.farthestCategory) {
+    const mapping = ['Arrays & Hashing', 'Two Pointers', 'Sliding Window', 'Stack', 'Binary Search', 'Linked List', 'Trees', 'Tries', 'Heap / Priority Queue', 'Backtracking', 'Graphs', 'Dynamic Programming'];
+    const index = Math.max(mapping.indexOf(dashboard.farthestCategory), 0);
+    return { number: index + 1, label: dashboard.farthestCategory };
+  }
+  return null;
+}
+
+function toDraft(card: DashboardCard): UpsertAttemptRequest {
+  return {
+    ...EMPTY_ATTEMPT,
+    attempts: card.latestAttempt?.attempts ?? null,
+    confidence: card.latestAttempt?.confidence ?? null,
+    notes: card.latestAttempt?.notes ?? null,
+  };
+}
+
+function getMiniCalendarDays(now: Date): Date[] {
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const gridStart = new Date(monthStart);
+  gridStart.setDate(monthStart.getDate() - monthStart.getDay());
+  return Array.from({ length: 35 }, (_, index) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index));
+}
+
+type DifficultyLabel = 'Easy' | 'Medium' | 'Hard';
+
+function getProblemSolved(problem: ProblemWithLatestAttempt, editorState?: UpsertAttemptRequest | null): boolean {
+  if (typeof editorState?.solved === 'boolean') {
+    return editorState.solved;
+  }
+  const latestAttempt = problem.latestAttempt as Record<string, unknown> | null;
+  return latestAttempt?.solved === true;
+}
+
+function ProgressDonut({
+  solvedByDifficulty,
+  totalByDifficulty,
+  solvedTotal,
+  totalProblems,
+  children,
+}: {
+  solvedByDifficulty: Record<DifficultyLabel, number>;
+  totalByDifficulty: Record<DifficultyLabel, number>;
+  solvedTotal: number;
+  totalProblems: number;
+  children?: ReactNode;
+}) {
+  const slices: Array<{ difficulty: DifficultyLabel; solved: number; total: number; color: string }> = [
+    { difficulty: 'Easy', solved: solvedByDifficulty.Easy, total: totalByDifficulty.Easy, color: '#4fa569' },
+    { difficulty: 'Medium', solved: solvedByDifficulty.Medium, total: totalByDifficulty.Medium, color: '#c28732' },
+    { difficulty: 'Hard', solved: solvedByDifficulty.Hard, total: totalByDifficulty.Hard, color: '#be4b59' },
+  ];
+  const radius = 46;
+  const circumference = 2 * Math.PI * radius;
+  let offsetCursor = 0;
+
+  return (
+    <div className="progress-chart-block" aria-label="Solved by difficulty">
+      <div className="progress-chart-wrap">
+        <svg viewBox="0 0 120 120" className="progress-donut" role="img" aria-label="Solved problems by difficulty">
+          <circle cx="60" cy="60" r={radius} fill="none" stroke="color-mix(in srgb, var(--border) 50%, transparent)" strokeWidth="14" />
+          {slices.map((slice) => {
+            const ratio = solvedTotal > 0 ? slice.solved / solvedTotal : 0;
+            const dash = ratio * circumference;
+            const segmentOffset = -offsetCursor;
+            offsetCursor += dash;
+            if (slice.solved === 0) {
+              return null;
+            }
+            return (
+              <circle
+                key={slice.difficulty}
+                cx="60"
+                cy="60"
+                r={radius}
+                fill="none"
+                stroke={slice.color}
+                strokeWidth="14"
+                strokeLinecap="butt"
+                strokeDasharray={`${dash} ${circumference - dash}`}
+                strokeDashoffset={segmentOffset}
+                transform="rotate(-90 60 60)"
+              >
+                <title>{`${slice.difficulty}: ${slice.solved} / ${slice.total}`}</title>
+              </circle>
+            );
+          })}
+        </svg>
+        <div className="progress-donut-center">
+          <strong>{solvedTotal}</strong>
+          <span>{`/ ${totalProblems}`}</span>
+        </div>
+      </div>
+      <div className="progress-chart-side">
+        <ul className="progress-legend clean-list">
+          {slices.map((slice) => (
+            <li key={slice.difficulty}>
+              <span className="legend-label"><span className="legend-dot" style={{ background: slice.color }} />{slice.difficulty}</span>
+              <span className="legend-count">{`${slice.solved}/${slice.total}`}</span>
+            </li>
+          ))}
+        </ul>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function DashboardPage() {
+  const { token } = useAuth();
+  const { openAuthCta, authCtaModal } = useAuthCtaModal();
+  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [progressProblems, setProgressProblems] = useState<ProblemWithLatestAttempt[]>([]);
+  const [upNextState, setUpNextState] = useState<Record<number, UpNextState>>({});
+  const timeoutRefs = useRef<Record<number, ReturnType<typeof setTimeout> | undefined>>({});
+  const requestVersionRef = useRef<Record<number, number>>({});
+  const upNextStateRef = useRef<Record<number, UpNextState>>({});
+
+  useEffect(() => {
+    if (!token) {
+      setDashboard(null);
+      setError(null);
+      return;
+    }
+
+    const load = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        setDashboard(await api.getDashboard(token, 'latest'));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load dashboard');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void load();
+  }, [token]);
+
+  const activityDays = useMemo(() => {
+    if (!token) {
+      return DEMO_ACTIVITY_DAYS;
+    }
+    const raw = (dashboard as unknown as { activityDays?: unknown })?.activityDays;
+    return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === 'string') : [];
+  }, [dashboard, token]);
+
+  const level = useMemo(() => (token ? resolveLevel(dashboard) : DEMO_LEVEL), [dashboard, token]);
+
+  const upNextCards = useMemo(() => {
+    if (!token) {
+      return DEMO_CARDS;
+    }
+    const raw = (dashboard as unknown as { rightPanel?: { nextUnsolved?: unknown } })?.rightPanel?.nextUnsolved;
+    const normalized = normalizeCards(raw);
+    return normalized.length > 0 ? normalized.slice(0, 5) : FALLBACK_CARDS;
+  }, [dashboard, token]);
+
+  const targetListId = dashboard?.latestListId ?? dashboard?.listId ?? null;
+
+  useEffect(() => {
+    if (!token || !targetListId) {
+      setProgressProblems([]);
+      return;
+    }
+    const loadProblems = async () => {
+      try {
+        setProgressProblems(await api.getProblems(token, targetListId));
+      } catch {
+        setProgressProblems([]);
+      }
+    };
+    void loadProblems();
+  }, [targetListId, token]);
+
+  const progressSourceProblems = token ? progressProblems : DEMO_PROBLEMS;
+  const progressTotals = useMemo(() => {
+    const base: Record<DifficultyLabel, number> = { Easy: 0, Medium: 0, Hard: 0 };
+    const solved: Record<DifficultyLabel, number> = { Easy: 0, Medium: 0, Hard: 0 };
+    for (const problem of progressSourceProblems) {
+      const difficulty = (problem.difficulty === 'Easy' || problem.difficulty === 'Medium' || problem.difficulty === 'Hard') ? problem.difficulty : null;
+      if (!difficulty) {
+        continue;
+      }
+      base[difficulty] += 1;
+      if (getProblemSolved(problem)) {
+        solved[difficulty] += 1;
+      }
+    }
+    const totalSolved = solved.Easy + solved.Medium + solved.Hard;
+    const totalProblems = base.Easy + base.Medium + base.Hard;
+    return { solved, base, totalSolved, totalProblems };
+  }, [progressSourceProblems]);
+
+  useEffect(() => {
+    upNextStateRef.current = upNextState;
+  }, [upNextState]);
+
+  useEffect(() => {
+    setUpNextState((current) => {
+      const next: Record<number, UpNextState> = {};
+      for (const card of upNextCards) {
+        const existing = current[card.neet250Id];
+        next[card.neet250Id] =
+          existing ?? {
+            attemptId: card.latestAttempt?.attemptId ?? null,
+            draft: toDraft(card),
+            status: 'idle',
+            error: null,
+          };
+      }
+      return next;
+    });
+  }, [upNextCards]);
+
+  const saveAttempt = (card: DashboardCard, draft: UpsertAttemptRequest, options?: { immediate?: boolean; retry?: boolean }) => {
+    if (!token || !targetListId) {
+      return;
+    }
+    const run = async (retry = false) => {
+      if (!upNextStateRef.current[card.neet250Id]?.attemptId && isEmptyAttemptPayload(draft)) {
+        return;
+      }
+      const version = (requestVersionRef.current[card.neet250Id] ?? 0) + 1;
+      requestVersionRef.current[card.neet250Id] = version;
+      setUpNextState((current) => ({
+        ...current,
+        [card.neet250Id]: {
+          ...(current[card.neet250Id] ?? { attemptId: null, draft }),
+          draft,
+          status: 'saving',
+          error: null,
+        },
+      }));
+
+      const existingAttemptId = upNextStateRef.current[card.neet250Id]?.attemptId ?? null;
+
+      try {
+        const saved = existingAttemptId
+          ? await api.patchAttempt(token, existingAttemptId, draft)
+          : await api.createAttempt(token, targetListId, card.neet250Id, draft);
+
+        if (requestVersionRef.current[card.neet250Id] !== version) {
+          return;
+        }
+        setUpNextState((current) => ({
+          ...current,
+          [card.neet250Id]: {
+            ...(current[card.neet250Id] ?? { draft, attemptId: null }),
+            attemptId: saved.id,
+            draft,
+            status: 'idle',
+            error: null,
+          },
+        }));
+      } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : 'Couldn’t save. Retry';
+        const apiError = e instanceof ApiError ? e : null;
+        if (!retry && apiError?.status === 0) {
+          window.setTimeout(() => {
+            void run(true);
+          }, 2000);
+          return;
+        }
+        if (requestVersionRef.current[card.neet250Id] !== version) {
+          return;
+        }
+        setUpNextState((current) => ({
+          ...current,
+          [card.neet250Id]: {
+            ...(current[card.neet250Id] ?? { draft, attemptId: null }),
+            draft,
+            status: 'error',
+            error: errorMessage || 'Couldn’t save. Retry',
+          },
+        }));
+      }
+    };
+
+    if (options?.immediate) {
+      void run(options.retry);
+      return;
+    }
+
+    if (timeoutRefs.current[card.neet250Id]) {
+      window.clearTimeout(timeoutRefs.current[card.neet250Id]);
+    }
+    timeoutRefs.current[card.neet250Id] = window.setTimeout(() => {
+      void run(options?.retry);
+    }, 700);
+  };
+
+  const updateField = (card: DashboardCard, updates: Partial<UpsertAttemptRequest>) => {
+    if (!token) {
+      openAuthCta();
+      return;
+    }
+    const current = upNextState[card.neet250Id] ?? { attemptId: card.latestAttempt?.attemptId ?? null, draft: toDraft(card), status: 'idle' as const, error: null };
+    const nextDraft = { ...current.draft, ...updates };
+    setUpNextState((state) => ({
+      ...state,
+      [card.neet250Id]: {
+        ...current,
+        draft: nextDraft,
+        status: current.status === 'error' ? 'idle' : current.status,
+        error: null,
+      },
+    }));
+    saveAttempt(card, nextDraft);
+  };
+
+  const currentMonthLabel = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date());
+  const calendarDays = getMiniCalendarDays(new Date());
+  const highlightedDays = new Set(activityDays);
+
+  return (
+    <section className="stack-24">
+      <div>
+        <h1>{token ? 'Welcome back' : 'Welcome'}</h1>
+        <p className="muted">{token ? 'Keep the streak alive.' : 'Log in to start tracking.'}</p>
+      </div>
+      {loading ? (
+        <div className="dashboard-skeleton" aria-live="polite">
+          <div className="skeleton-block" />
+          <div className="skeleton-block" />
+        </div>
+      ) : null}
+      {error ? <p className="error">{error}</p> : null}
+      <div className="dashboard-layout">
+        <Card className="progress-card">
+          <div className="progress-card-header">
+            <h2>Progress</h2>
+            {level ? <span className="progress-level-inline">Level {level.number}: {level.label}</span> : <span className="muted">Level —</span>}
+          </div>
+          <div className="mini-calendar-wrap">
+            <div className="mini-calendar-head">
+              <strong>{currentMonthLabel}</strong>
+              {activityDays.length === 0 ? <span className="muted">No activity yet</span> : null}
+            </div>
+            <div className="mini-calendar-grid" role="presentation">
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((label) => (
+                <span key={label} className="mini-calendar-dow">{label}</span>
+              ))}
+              {calendarDays.map((day) => {
+                const iso = day.toISOString().slice(0, 10);
+                const isCurrentMonth = day.getMonth() === new Date().getMonth();
+                const isActive = highlightedDays.has(iso);
+                return (
+                  <span
+                    key={iso}
+                    className={`mini-calendar-day ${isCurrentMonth ? '' : 'is-dim'} ${isActive ? 'is-active' : ''}`.trim()}
+                    aria-label={iso}
+                  >
+                    {day.getDate()}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+          <ProgressDonut
+            solvedByDifficulty={progressTotals.solved}
+            totalByDifficulty={progressTotals.base}
+            solvedTotal={progressTotals.totalSolved}
+            totalProblems={progressTotals.totalProblems}
+          >
+            <div className="mini-stats">
+              <div className="mini-stat-tile">
+                <span className="mini-stat-label">Current streak:</span>
+                <span className="mini-stat-value">{token ? dashboard?.streakCurrent ?? 0 : 6}</span>
+              </div>
+              <div className="mini-stat-tile">
+                <span className="mini-stat-label">Average streak:</span>
+                <span className="mini-stat-value">{token ? dashboard?.streakAverage ?? 0 : 3.1}</span>
+              </div>
+              <div className="mini-stat-tile">
+                <span className="mini-stat-label">Problems solved:</span>
+                <span className="mini-stat-value">{progressTotals.totalSolved}</span>
+              </div>
+            </div>
+          </ProgressDonut>
+        </Card>
+
+        <Card>
+          <div className="up-next-header">
+            <h2>Up Next</h2>
+          </div>
+          <div className="up-next-stack">
+            {upNextCards.map((card) => {
+              const state = upNextState[card.neet250Id] ?? {
+                attemptId: card.latestAttempt?.attemptId ?? null,
+                draft: toDraft(card),
+                status: 'idle' as const,
+                error: null,
+              };
+              return (
+                <article key={card.neet250Id} className="up-next-card">
+                  <div className="up-next-title-row">
+                    <div>
+                      <h3>{card.title}</h3>
+                      <p className="muted">{card.category}</p>
+                    </div>
+                    <Pill>{`#${card.orderIndex || '—'}`}</Pill>
+                  </div>
+                  <div className="up-next-fields">
+                    <Input
+                      value={state.draft.attempts ?? ''}
+                      inputMode="numeric"
+                      placeholder="Attempts"
+                      onChange={(event) => {
+                        const value = event.target.value.trim();
+                        updateField(card, { attempts: value ? Number(value) : null });
+                      }}
+                      onFocus={!token ? openAuthCta : undefined}
+                    />
+                    <Select
+                      value={state.draft.confidence ?? ''}
+                      onChange={(event) => updateField(card, { confidence: event.target.value || null })}
+                      onClick={!token ? openAuthCta : undefined}
+                    >
+                      <option value="">Confidence</option>
+                      <option value="LOW">Low</option>
+                      <option value="MEDIUM">Medium</option>
+                      <option value="HIGH">High</option>
+                    </Select>
+                    <Input
+                      value={state.draft.notes ?? ''}
+                      placeholder="Quick note"
+                      onChange={(event) => updateField(card, { notes: event.target.value || null })}
+                      onFocus={!token ? openAuthCta : undefined}
+                    />
+                  </div>
+                  <div className="up-next-actions">
+                    <Button variant="secondary" onClick={token ? undefined : openAuthCta}>Open problem</Button>
+                    {state.status === 'saving' ? <span className="muted">Saving...</span> : null}
+                    {state.status === 'error' ? (
+                      <button
+                        type="button"
+                        className="inline-retry"
+                        onClick={() => saveAttempt(card, state.draft, { immediate: true, retry: true })}
+                      >
+                        Couldn’t save. Retry
+                      </button>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          {!token && <p className="muted">Demo mode: every interaction opens login CTA.</p>}
+          {token && !targetListId ? <p className="error">Create/select a list to save attempts from Dashboard.</p> : null}
+        </Card>
+      </div>
+      {authCtaModal}
+    </section>
+  );
+}
+
+function ProblemsPage() {
+  const { token } = useAuth();
+  const { openAuthCta, authCtaModal } = useAuthCtaModal();
+  const [lists, setLists] = useState<ListItem[]>([]);
+  const [selectedListId, setSelectedListId] = useState('');
+  const [problems, setProblems] = useState<ProblemWithLatestAttempt[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [difficultyFilter, setDifficultyFilter] = useState<'all' | DifficultyLabel>('all');
+  const [categoryStatusFilter, setCategoryStatusFilter] = useState<'all' | 'unfinished' | 'completed'>('all');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [expandedProblems, setExpandedProblems] = useState<Record<number, boolean>>({});
+  const [editorState, setEditorState] = useState<
+    Record<
+      number,
+      {
+        attemptId: string | null;
+        draft: UpsertAttemptRequest;
+        status: SaveState;
+        error: string | null;
+        history: Array<{ item: ProblemWithLatestAttempt['latestAttempt'] & { id: string; updatedAt?: string | null } }>;
+      }
+    >
+  >({});
+  const timeoutRefs = useRef<Record<number, ReturnType<typeof setTimeout> | undefined>>({});
+  const requestVersionRef = useRef<Record<number, number>>({});
+  const retryVersionRef = useRef<Record<number, number>>({});
+  const editorStateRef = useRef(editorState);
+
+  useEffect(() => {
+    editorStateRef.current = editorState;
+  }, [editorState]);
+
+  const toAttemptDraft = (attempt: Record<string, unknown> | null | undefined): UpsertAttemptRequest => ({
+    ...EMPTY_ATTEMPT,
+    solved: typeof attempt?.solved === 'boolean' ? attempt.solved : null,
+    dateSolved: typeof attempt?.dateSolved === 'string' ? attempt.dateSolved : null,
+    timeMinutes: typeof attempt?.timeMinutes === 'number' ? attempt.timeMinutes : null,
+    attempts: typeof attempt?.attempts === 'number' ? attempt.attempts : null,
+    confidence: typeof attempt?.confidence === 'string' ? attempt.confidence : null,
+    timeComplexity: typeof attempt?.timeComplexity === 'string' ? attempt.timeComplexity : null,
+    spaceComplexity: typeof attempt?.spaceComplexity === 'string' ? attempt.spaceComplexity : null,
+    notes: typeof attempt?.notes === 'string' ? attempt.notes : null,
+    problemUrl: typeof attempt?.problemUrl === 'string' ? attempt.problemUrl : null,
+  });
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    const load = async () => {
+      const loadedLists = await api.getLists(token);
+      setLists(loadedLists);
+      if (loadedLists[0]) {
+        setSelectedListId(loadedLists[0].id);
+      }
+    };
+    void load();
+  }, [token]);
+
+  useEffect(() => {
+    if (!token || !selectedListId) {
+      return;
+    }
+    const loadProblems = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        setProblems(await api.getProblems(token, selectedListId));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load problems');
+      } finally {
+        setLoading(false);
+      }
+    };
+    void loadProblems();
+  }, [token, selectedListId]);
+
+  const sourceProblems = token ? problems : DEMO_PROBLEMS;
+
+  useEffect(() => {
+    setEditorState((current) => {
+      const next = { ...current };
+      for (const problem of sourceProblems) {
+        if (next[problem.neet250Id]) {
+          continue;
+        }
+        const latest = problem.latestAttempt as Record<string, unknown> | null;
+        next[problem.neet250Id] = {
+          attemptId: typeof latest?.id === 'string' ? latest.id : null,
+          draft: toAttemptDraft(latest),
+          status: 'idle',
+          error: null,
+          history: [],
+        };
+      }
+      return next;
+    });
+  }, [sourceProblems]);
+
+  const categories = useMemo(() => Array.from(new Set(sourceProblems.map((problem) => problem.category))).sort(), [sourceProblems]);
+
+  const categoryProgress = useMemo(() => {
+    const stats = new Map<string, { solvedCount: number; totalInCategory: number }>();
+    for (const problem of sourceProblems) {
+      const stat = stats.get(problem.category) ?? { solvedCount: 0, totalInCategory: 0 };
+      stat.totalInCategory += 1;
+      if (getProblemSolved(problem, editorState[problem.neet250Id]?.draft)) {
+        stat.solvedCount += 1;
+      }
+      stats.set(problem.category, stat);
+    }
+    return stats;
+  }, [editorState, sourceProblems]);
+
+  const filteredProblems = useMemo(
+    () =>
+      sourceProblems.filter((problem) => {
+        if (categoryFilter !== 'all' && problem.category !== categoryFilter) {
+          return false;
+        }
+        if (difficultyFilter !== 'all' && problem.difficulty !== difficultyFilter) {
+          return false;
+        }
+        return true;
+      }),
+    [categoryFilter, difficultyFilter, sourceProblems],
+  );
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, ProblemWithLatestAttempt[]>();
+    for (const problem of filteredProblems) {
+      const categoryProblems = map.get(problem.category) ?? [];
+      categoryProblems.push(problem);
+      map.set(problem.category, categoryProblems);
+    }
+    return Array.from(map.entries());
+  }, [filteredProblems]);
+
+  const visibleGroups = useMemo(
+    () =>
+      grouped.filter(([category]) => {
+        if (categoryStatusFilter === 'all') {
+          return true;
+        }
+        const stats = categoryProgress.get(category);
+        if (!stats) {
+          return false;
+        }
+        const isCompleted = stats.solvedCount === stats.totalInCategory;
+        return categoryStatusFilter === 'completed' ? isCompleted : !isCompleted;
+      }),
+    [categoryProgress, categoryStatusFilter, grouped],
+  );
+
+  const scheduleSave = (problem: ProblemWithLatestAttempt, draft: UpsertAttemptRequest, options?: { immediate?: boolean; retry?: boolean }) => {
+    if (!token || !selectedListId) {
+      return;
+    }
+    const run = async (retry = false) => {
+      const current = editorStateRef.current[problem.neet250Id];
+      if (!current?.attemptId && isEmptyAttemptPayload(draft)) {
+        return;
+      }
+      const version = (requestVersionRef.current[problem.neet250Id] ?? 0) + 1;
+      requestVersionRef.current[problem.neet250Id] = version;
+      if (!retry) {
+        retryVersionRef.current[problem.neet250Id] = version;
+      }
+      setEditorState((prev) => ({
+        ...prev,
+        [problem.neet250Id]: { ...(prev[problem.neet250Id] ?? { attemptId: null, draft, history: [] }), draft, status: 'saving', error: null },
+      }));
+
+      try {
+        const attemptId = editorStateRef.current[problem.neet250Id]?.attemptId ?? null;
+        const saved = attemptId
+          ? await api.patchAttempt(token, attemptId, draft)
+          : await api.createAttempt(token, selectedListId, problem.neet250Id, draft);
+        if (requestVersionRef.current[problem.neet250Id] !== version) {
+          return;
+        }
+        setEditorState((prev) => ({
+          ...prev,
+          [problem.neet250Id]: {
+            ...(prev[problem.neet250Id] ?? { draft, history: [] }),
+            attemptId: saved.id,
+            draft,
+            status: 'idle',
+            error: null,
+            history: prev[problem.neet250Id]?.history ?? [],
+          },
+        }));
+      } catch (e) {
+        const apiError = e instanceof ApiError ? e : null;
+        if (!retry && apiError?.status === 0) {
+          window.setTimeout(() => {
+            if (retryVersionRef.current[problem.neet250Id] === version) {
+              void run(true);
+            }
+          }, 2000);
+          return;
+        }
+        if (apiError?.status === 400 && !editorStateRef.current[problem.neet250Id]?.attemptId && isEmptyAttemptPayload(draft)) {
+          setEditorState((prev) => ({
+            ...prev,
+            [problem.neet250Id]: { ...(prev[problem.neet250Id] ?? { attemptId: null, draft, history: [] }), draft, status: 'idle', error: null },
+          }));
+          return;
+        }
+        if (requestVersionRef.current[problem.neet250Id] !== version) {
+          return;
+        }
+        setEditorState((prev) => ({
+          ...prev,
+          [problem.neet250Id]: {
+            ...(prev[problem.neet250Id] ?? { attemptId: null, draft, history: [] }),
+            draft,
+            status: 'error',
+            error: e instanceof Error ? e.message : 'Couldn’t save. Retry',
+          },
+        }));
+      }
+    };
+
+    if (options?.immediate) {
+      void run(options.retry);
+      return;
+    }
+    if (timeoutRefs.current[problem.neet250Id]) {
+      window.clearTimeout(timeoutRefs.current[problem.neet250Id]);
+    }
+    timeoutRefs.current[problem.neet250Id] = window.setTimeout(() => {
+      void run(options?.retry);
+    }, 700);
+  };
+
+  const updateDraft = (problem: ProblemWithLatestAttempt, update: Partial<UpsertAttemptRequest>, immediate = false) => {
+    const current = editorState[problem.neet250Id] ?? { attemptId: null, draft: EMPTY_ATTEMPT, status: 'idle' as SaveState, error: null, history: [] };
+    const nextDraft = { ...current.draft, ...update };
+    setEditorState((prev) => ({ ...prev, [problem.neet250Id]: { ...current, draft: nextDraft, status: immediate ? current.status : 'saving', error: null } }));
+    if (!token) {
+      openAuthCta();
+      return;
+    }
+    scheduleSave(problem, nextDraft, { immediate });
+  };
+
+  const loadHistory = async (problem: ProblemWithLatestAttempt) => {
+    if (!token || !selectedListId) {
+      return;
+    }
+    const history = await api.getAttemptsHistory(token, selectedListId, problem.neet250Id);
+    setEditorState((prev) => ({
+      ...prev,
+      [problem.neet250Id]: {
+        ...(prev[problem.neet250Id] ?? { attemptId: null, draft: EMPTY_ATTEMPT, status: 'idle', error: null }),
+        history: history.map((item) => ({ item })),
+      },
+    }));
+  };
+
+  return (
+    <section className="stack-24 problems-page">
+      <div>
+        <h1>Problems</h1>
+        <p className="muted">Let's get tracking.</p>
+      </div>
+      <Card>
+        <div className="problems-toolbar">
+          <label className="toolbar-control">
+            <span className="toolbar-label">List</span>
+            <Select value={selectedListId} onChange={(event) => setSelectedListId(event.target.value)} onClick={!token ? openAuthCta : undefined} disabled={token && lists.length === 0}>
+              <option value="">Select a list</option>
+              {lists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name}
+                </option>
+              ))}
+              {!token ? <option value="demo">Demo list</option> : null}
+            </Select>
+          </label>
+          <label className="toolbar-control">
+            <span className="toolbar-label">Category</span>
+            <Select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} onClick={!token ? openAuthCta : undefined}>
+              <option value="all">All categories</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <label className="toolbar-control">
+            <span className="toolbar-label">Difficulty</span>
+            <Select value={difficultyFilter} onChange={(event) => setDifficultyFilter(event.target.value as 'all' | DifficultyLabel)} onClick={!token ? openAuthCta : undefined}>
+              <option value="all">All difficulties</option>
+              <option value="Easy">Easy</option>
+              <option value="Medium">Medium</option>
+              <option value="Hard">Hard</option>
+            </Select>
+          </label>
+          <label className="toolbar-control">
+            <span className="toolbar-label">Category status</span>
+            <Select value={categoryStatusFilter} onChange={(event) => setCategoryStatusFilter(event.target.value as 'all' | 'unfinished' | 'completed')} onClick={!token ? openAuthCta : undefined}>
+              <option value="all">All statuses</option>
+              <option value="unfinished">Unfinished categories</option>
+              <option value="completed">Completed categories</option>
+            </Select>
+          </label>
+        </div>
+        {loading ? <p className="muted">Loading problems…</p> : null}
+        {error ? <p className="error">{error}</p> : null}
+        <div className="problems-accordion">
+          {visibleGroups.map(([category, items]) => {
+            const solvedCount = categoryProgress.get(category)?.solvedCount ?? 0;
+            const open = expandedCategories[category] ?? true;
+            return (
+              <article className="category-card" key={category}>
+                <button type="button" className="category-header" onClick={() => setExpandedCategories((prev) => ({ ...prev, [category]: !open }))}>
+                  <span>{category}</span>
+                  <span className="muted">{solvedCount}/{items.length} solved</span>
+                </button>
+                {open ? (
+                  <div className="problem-list-stack">
+                    {items.map((problem) => {
+                      const state = editorState[problem.neet250Id] ?? { attemptId: null, draft: EMPTY_ATTEMPT, status: 'idle' as SaveState, error: null, history: [] };
+                      const drawerOpen = expandedProblems[problem.neet250Id] ?? false;
+                      const difficultyTone = problem.difficulty === 'Easy' ? 'success' : problem.difficulty === 'Hard' ? 'warning' : 'default';
+                      return (
+                        <article className="problem-row-card" key={problem.neet250Id}>
+                          <div className="problem-row-main">
+                            <button
+                              type="button"
+                              className={`solved-toggle ${state.draft.solved ? 'is-on' : ''}`}
+                              aria-pressed={state.draft.solved === true}
+                              onClick={() => updateDraft(problem, { solved: state.draft.solved === true ? false : true, dateSolved: state.draft.solved === true ? null : new Date().toISOString().slice(0, 10) }, true)}
+                            >
+                              ✓
+                            </button>
+                            <div className="problem-row-title">
+                              <div className="problem-title-line">
+                                <Pill tone={difficultyTone}>{problem.difficulty}</Pill>
+                                <a className="problem-link" href={`https://leetcode.com/problems/${problem.leetcodeSlug}/`} target="_blank" rel="noreferrer" onClick={!token ? (e) => { e.preventDefault(); openAuthCta(); } : undefined}>
+                                  {problem.title}
+                                </a>
+                              </div>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              onClick={() => {
+                                if (!drawerOpen) {
+                                  void loadHistory(problem);
+                                }
+                                setExpandedProblems((prev) => ({ ...prev, [problem.neet250Id]: !drawerOpen }));
+                              }}
+                            >
+                              {drawerOpen ? 'Hide details' : 'Details'}
+                            </Button>
+                          </div>
+                          {drawerOpen ? (
+                            <div className="details-drawer">
+                              <div className="drawer-fields">
+                                <Input type="date" value={state.draft.dateSolved ?? ''} onChange={(event) => updateDraft(problem, { dateSolved: event.target.value || null })} />
+                                <Input type="number" placeholder="Minutes" value={state.draft.timeMinutes ?? ''} onChange={(event) => updateDraft(problem, { timeMinutes: event.target.value ? Number(event.target.value) : null })} />
+                                <Input type="number" placeholder="Attempts" value={state.draft.attempts ?? ''} onChange={(event) => updateDraft(problem, { attempts: event.target.value ? Number(event.target.value) : null })} />
+                                <Input placeholder="Time complexity" value={state.draft.timeComplexity ?? ''} onChange={(event) => updateDraft(problem, { timeComplexity: event.target.value || null })} />
+                                <Input placeholder="Space complexity" value={state.draft.spaceComplexity ?? ''} onChange={(event) => updateDraft(problem, { spaceComplexity: event.target.value || null })} />
+                                <Select value={state.draft.confidence ?? ''} onChange={(event) => updateDraft(problem, { confidence: event.target.value || null })}>
+                                  <option value="">Confidence</option>
+                                  <option value="LOW">Low</option>
+                                  <option value="MEDIUM">Medium</option>
+                                  <option value="HIGH">High</option>
+                                </Select>
+                                <Input className="drawer-full" placeholder="Problem URL" value={state.draft.problemUrl ?? ''} onChange={(event) => updateDraft(problem, { problemUrl: event.target.value || null })} />
+                                <textarea className="cc-input drawer-full drawer-textarea" placeholder="Notes" value={state.draft.notes ?? ''} onChange={(event) => updateDraft(problem, { notes: event.target.value || null })} />
+                              </div>
+                              <div className="drawer-status-row">
+                                {state.status === 'saving' ? <span className="muted">Saving...</span> : null}
+                                {state.status === 'error' ? (
+                                  <button className="inline-retry" onClick={() => scheduleSave(problem, state.draft, { immediate: true, retry: true })}>
+                                    Couldn’t save. Retry
+                                  </button>
+                                ) : null}
+                              </div>
+                              <div className="history-panel">
+                                <h3>History</h3>
+                                <ul className="history-list">
+                                  {state.history.map(({ item }) => {
+                                    const attempt = item as Record<string, unknown>;
+                                    return (
+                                      <li key={String(attempt.id)}>
+                                        <div>
+                                          <strong>{String(attempt.updatedAt ?? 'Recent attempt')}</strong>
+                                          <p className="muted">{attempt.notes ? String(attempt.notes) : 'No notes'}</p>
+                                        </div>
+                                        <div className="history-actions">
+                                          <Button variant="ghost" onClick={() => setEditorState((prev) => ({ ...prev, [problem.neet250Id]: { ...prev[problem.neet250Id], attemptId: String(attempt.id), draft: toAttemptDraft(attempt) } }))}>
+                                            Edit
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            onClick={async () => {
+                                              if (!token) {
+                                                openAuthCta();
+                                                return;
+                                              }
+                                              await api.deleteAttempt(token, String(attempt.id));
+                                              await loadHistory(problem);
+                                            }}
+                                          >
+                                            Delete
+                                          </Button>
+                                        </div>
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
+                              </div>
+                            </div>
+                          ) : null}
+                        </article>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+        {!token ? <p className="muted">Demo mode: interactions open login CTA modal.</p> : null}
+        {token && !selectedListId ? <p className="error">Select a list to load and save attempts.</p> : null}
+      </Card>
+      {authCtaModal}
+    </section>
+  );
 }
 
 function LoginPage() {
   const { token, setToken } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -52,30 +1074,25 @@ function LoginPage() {
     try {
       const response = await api.login({ email, password });
       setToken(response.accessToken);
-      navigate((location.state as { from?: string } | null)?.from ?? '/', { replace: true });
+      navigate('/', { replace: true });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Login failed');
     }
   };
 
   return (
-    <main className="auth-page">
+    <Card className="auth-card">
       <h1>Login</h1>
-      <form onSubmit={submit}>
-        <input placeholder="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-        <input
-          placeholder="password"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
-        <button type="submit">Login</button>
+      <form onSubmit={submit} className="stack-16">
+        <Input placeholder="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+        <Input placeholder="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+        <Button type="submit">Login</Button>
       </form>
-      {error && <p className="error">{error}</p>}
-      <p>
+      {error ? <p className="error">{error}</p> : null}
+      <p className="muted">
         Need an account? <Link to="/signup">Signup</Link>
       </p>
-    </main>
+    </Card>
   );
 }
 
@@ -104,913 +1121,31 @@ function SignupPage() {
   };
 
   return (
-    <main className="auth-page">
+    <Card className="auth-card">
       <h1>Signup</h1>
-      <form onSubmit={submit}>
-        <input placeholder="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-        <input
-          placeholder="password"
-          type="password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-        />
-        <input placeholder="timezone" value={timezone} onChange={(event) => setTimezone(event.target.value)} />
-        <button type="submit">Create account</button>
+      <form onSubmit={submit} className="stack-16">
+        <Input placeholder="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+        <Input placeholder="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+        <Input placeholder="timezone" value={timezone} onChange={(event) => setTimezone(event.target.value)} />
+        <Button type="submit">Create account</Button>
       </form>
-      {error && <p className="error">{error}</p>}
-      <p>
+      {error ? <p className="error">{error}</p> : null}
+      <p className="muted">
         Already have an account? <Link to="/login">Login</Link>
       </p>
-    </main>
-  );
-}
-
-const asLatestAttempt = (problem: ProblemWithLatestAttempt): LatestAttemptLike | null =>
-  (problem.latestAttempt as LatestAttemptLike | null) ?? null;
-
-function toDraft(problem: ProblemWithLatestAttempt): UpsertAttemptRequest {
-  const latest = asLatestAttempt(problem);
-  return {
-    solved: latest?.solved ?? null,
-    dateSolved: latest?.dateSolved ?? null,
-    timeMinutes: latest?.timeMinutes ?? null,
-    attempts: latest?.attempts ?? null,
-    confidence: (latest?.confidence as string | null | undefined) ?? null,
-    timeComplexity: (latest?.timeComplexity as string | null | undefined) ?? null,
-    spaceComplexity: (latest?.spaceComplexity as string | null | undefined) ?? null,
-    notes: latest?.notes ?? null,
-    problemUrl: latest?.problemUrl ?? null,
-  };
-}
-
-const toAttemptPayload = (attempt: Attempt): UpsertAttemptRequest => ({
-  solved: attempt.solved,
-  dateSolved: attempt.dateSolved,
-  timeMinutes: attempt.timeMinutes,
-  attempts: attempt.attempts,
-  confidence: attempt.confidence,
-  timeComplexity: attempt.timeComplexity,
-  spaceComplexity: attempt.spaceComplexity,
-  notes: attempt.notes,
-  problemUrl: attempt.problemUrl,
-});
-
-function HomePage() {
-  const { token, setToken } = useAuth();
-  const navigate = useNavigate();
-  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-  const [lists, setLists] = useState<ListItem[]>([]);
-  const [selectedListId, setSelectedListId] = useState<string | null>(null);
-  const [dashboardScope, setDashboardScope] = useState<'latest' | 'list' | 'all'>('latest');
-  const [problems, setProblems] = useState<ProblemWithLatestAttempt[]>([]);
-  const [rows, setRows] = useState<Record<number, EditableRowState>>({});
-  const [historyByNeetId, setHistoryByNeetId] = useState<Record<number, Attempt[]>>({});
-  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
-  const [expandedNotes, setExpandedNotes] = useState<Record<number, boolean>>({});
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [solvedFilter, setSolvedFilter] = useState<'all' | 'solved' | 'unsolved'>('all');
-  const [search, setSearch] = useState('');
-  const [theme, setTheme] = useState<ThemeId>('salt-pepper');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [newListName, setNewListName] = useState('');
-  const saveTimers = useRef<Record<number, number>>({});
-  const historyTimers = useRef<Record<string, number>>({});
-
-  const handleAuthError = (authError: unknown): boolean => {
-    if (authError instanceof ApiError && (authError.status === 401 || authError.status === 403)) {
-      setToken(null);
-      navigate('/login', { replace: true });
-      return true;
-    }
-    return false;
-  };
-
-  useEffect(() => {
-    if (!token) {
-      return;
-    }
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const listsResponse = await api.getLists(token);
-        const dashboardResponse = await api.getDashboard(token, 'latest');
-        setDashboard(dashboardResponse);
-        setLists(listsResponse);
-        setSelectedListId(dashboardResponse.latestListId ?? listsResponse[0]?.id ?? null);
-      } catch (e) {
-        if (!handleAuthError(e)) {
-          setError(e instanceof Error ? e.message : 'Failed to load dashboard/lists');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void load();
-  }, [token]);
-
-  useEffect(() => {
-    if (!token) {
-      return;
-    }
-    const loadDashboard = async () => {
-      try {
-        const response = await api.getDashboard(token, dashboardScope, dashboardScope === 'list' ? selectedListId : undefined);
-        setDashboard(response);
-      } catch (e) {
-        if (!handleAuthError(e)) {
-          setError(e instanceof Error ? e.message : 'Failed to load dashboard');
-        }
-      }
-    };
-    void loadDashboard();
-  }, [token, dashboardScope, selectedListId]);
-
-  useEffect(() => {
-    if (!token || !selectedListId) {
-      setProblems([]);
-      return;
-    }
-
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await api.getProblems(token, selectedListId);
-        setProblems(response);
-        const nextRows: Record<number, EditableRowState> = {};
-        response.forEach((problem) => {
-          const latest = asLatestAttempt(problem);
-          nextRows[problem.neet250Id] = {
-            draft: toDraft(problem),
-            attemptId: typeof latest?.id === 'string' ? latest.id : null,
-            hasServerData: latest != null,
-            status: 'idle',
-          };
-        });
-        setRows(nextRows);
-        setHistoryByNeetId({});
-        setExpanded({});
-      } catch (e) {
-        if (!handleAuthError(e)) {
-          setError(e instanceof Error ? e.message : 'Failed to load problems');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void load();
-  }, [token, selectedListId]);
-
-  useEffect(
-    () => () => {
-      Object.values(saveTimers.current).forEach((id) => window.clearTimeout(id));
-      Object.values(historyTimers.current).forEach((id) => window.clearTimeout(id));
-    },
-    []
-  );
-
-  const updateLatestAttempt = (neetId: number, attempt: Attempt | null) => {
-    setProblems((prev) =>
-      prev.map((problem) => {
-        if (problem.neet250Id !== neetId) {
-          return problem;
-        }
-        return { ...problem, latestAttempt: attempt };
-      })
-    );
-  };
-
-  const saveDraft = async (neetId: number, draft: UpsertAttemptRequest) => {
-    if (!token || !selectedListId) {
-      return;
-    }
-
-    let nextRow: EditableRowState | undefined;
-    setRows((prev) => {
-      nextRow = prev[neetId];
-      return {
-        ...prev,
-        [neetId]: {
-          ...(prev[neetId] ?? { draft: EMPTY_ATTEMPT, attemptId: null, hasServerData: false }),
-          draft,
-          status: 'saving',
-        },
-      };
-    });
-
-    const current = nextRow ?? rows[neetId];
-    const attemptId = current?.attemptId ?? null;
-
-    try {
-      if (isEmptyAttemptPayload(draft) && !attemptId) {
-        setRows((prev) => ({
-          ...prev,
-          [neetId]: {
-            ...(prev[neetId] ?? { draft: EMPTY_ATTEMPT, attemptId: null, hasServerData: false }),
-            draft,
-            status: 'saved',
-          },
-        }));
-        return;
-      }
-
-      const saved = attemptId
-        ? await api.patchAttempt(token, attemptId, draft)
-        : await api.createAttempt(token, selectedListId, neetId, draft);
-
-      const nextDraft = toAttemptPayload(saved);
-      setRows((prev) => ({
-        ...prev,
-        [neetId]: {
-          draft: nextDraft,
-          attemptId: saved.id,
-          hasServerData: true,
-          status: 'saved',
-        },
-      }));
-
-      setHistoryByNeetId((prev) => {
-        const existing = prev[neetId];
-        if (!existing) {
-          return prev;
-        }
-        const filtered = existing.filter((item) => item.id !== saved.id);
-        return {
-          ...prev,
-          [neetId]: [saved, ...filtered],
-        };
-      });
-
-      updateLatestAttempt(neetId, saved);
-    } catch (e) {
-      if (!handleAuthError(e)) {
-        setRows((prev) => ({
-          ...prev,
-          [neetId]: {
-            ...(prev[neetId] ?? { draft: EMPTY_ATTEMPT, attemptId: null, hasServerData: false }),
-            status: 'error',
-          },
-        }));
-      }
-    }
-  };
-
-  const scheduleSave = (neetId: number, update: (draft: UpsertAttemptRequest) => UpsertAttemptRequest) => {
-    const current = rows[neetId]?.draft ?? EMPTY_ATTEMPT;
-    const nextDraft = update(current);
-    setRows((prev) => ({
-      ...prev,
-      [neetId]: {
-        ...(prev[neetId] ?? { draft: EMPTY_ATTEMPT, attemptId: null, hasServerData: false, status: 'idle' }),
-        draft: nextDraft,
-        status: 'idle',
-      },
-    }));
-
-    if (saveTimers.current[neetId]) {
-      window.clearTimeout(saveTimers.current[neetId]);
-    }
-
-    saveTimers.current[neetId] = window.setTimeout(() => {
-      void saveDraft(neetId, nextDraft);
-    }, 450);
-  };
-
-  const loadHistory = async (neetId: number) => {
-    if (!token || !selectedListId) {
-      return;
-    }
-    try {
-      const history = await api.getAttemptsHistory(token, selectedListId, neetId);
-      setHistoryByNeetId((prev) => ({ ...prev, [neetId]: history }));
-      if (history[0]) {
-        setRows((prev) => ({
-          ...prev,
-          [neetId]: {
-            ...(prev[neetId] ?? { draft: EMPTY_ATTEMPT, attemptId: null, hasServerData: false, status: 'idle' }),
-            attemptId: history[0].id,
-            hasServerData: true,
-          },
-        }));
-      }
-    } catch (e) {
-      if (!handleAuthError(e)) {
-        setError(e instanceof Error ? e.message : 'Failed to load history');
-      }
-    }
-  };
-
-  const patchHistoryAttempt = async (neetId: number, attemptId: string, draft: UpsertAttemptRequest) => {
-    if (!token) {
-      return;
-    }
-    try {
-      const saved = await api.patchAttempt(token, attemptId, draft);
-      setHistoryByNeetId((prev) => ({
-        ...prev,
-        [neetId]: (prev[neetId] ?? []).map((item) => (item.id === attemptId ? saved : item)),
-      }));
-      if (rows[neetId]?.attemptId === attemptId) {
-        setRows((prev) => ({
-          ...prev,
-          [neetId]: {
-            ...(prev[neetId] ?? { draft: EMPTY_ATTEMPT, attemptId: null, hasServerData: false, status: 'idle' }),
-            draft: toAttemptPayload(saved),
-            status: 'saved',
-          },
-        }));
-        updateLatestAttempt(neetId, saved);
-      }
-    } catch (e) {
-      if (!handleAuthError(e)) {
-        setError(e instanceof Error ? e.message : 'Failed to update history attempt');
-      }
-    }
-  };
-
-  const scheduleHistorySave = (neetId: number, attempt: Attempt, update: (draft: UpsertAttemptRequest) => UpsertAttemptRequest) => {
-    const key = `${neetId}:${attempt.id}`;
-    const nextDraft = update(toAttemptPayload(attempt));
-    if (historyTimers.current[key]) {
-      window.clearTimeout(historyTimers.current[key]);
-    }
-    historyTimers.current[key] = window.setTimeout(() => {
-      void patchHistoryAttempt(neetId, attempt.id, nextDraft);
-    }, 450);
-  };
-
-  const deleteHistoryAttempt = async (neetId: number, attemptId: string) => {
-    if (!token) {
-      return;
-    }
-    try {
-      await api.deleteAttempt(token, attemptId);
-      setHistoryByNeetId((prev) => {
-        const nextHistory = (prev[neetId] ?? []).filter((item) => item.id !== attemptId);
-        const nextLatest = nextHistory[0] ?? null;
-
-        setRows((prevRows) => ({
-          ...prevRows,
-          [neetId]: {
-            ...(prevRows[neetId] ?? { draft: EMPTY_ATTEMPT, attemptId: null, hasServerData: false, status: 'idle' }),
-            attemptId: nextLatest?.id ?? null,
-            hasServerData: Boolean(nextLatest),
-            draft: nextLatest ? toAttemptPayload(nextLatest) : EMPTY_ATTEMPT,
-            status: 'saved',
-          },
-        }));
-        updateLatestAttempt(neetId, nextLatest);
-
-        return { ...prev, [neetId]: nextHistory };
-      });
-    } catch (e) {
-      if (!handleAuthError(e)) {
-        setError(e instanceof Error ? e.message : 'Failed to delete history attempt');
-      }
-    }
-  };
-
-  const categories = useMemo(() => ['All', ...new Set(problems.map((problem) => problem.category))], [problems]);
-
-  const visibleProblems = useMemo(
-    () =>
-      problems.filter((problem) => {
-        const row = rows[problem.neet250Id];
-        const draft = row?.draft ?? EMPTY_ATTEMPT;
-        const categoryMatch = selectedCategory === 'All' || problem.category === selectedCategory;
-        const solvedMatch =
-          solvedFilter === 'all' ||
-          (solvedFilter === 'solved' ? draft.solved === true : draft.solved !== true);
-        const searchMatch = problem.title.toLowerCase().includes(search.trim().toLowerCase());
-
-        return categoryMatch && solvedMatch && searchMatch;
-      }),
-    [problems, rows, selectedCategory, solvedFilter, search]
-  );
-
-  const createList = async () => {
-    if (!token || !newListName.trim()) {
-      return;
-    }
-    try {
-      const created = await api.createList(token, { name: newListName.trim(), templateVersion: 'NEET_250_V1' });
-      setLists((prev) => [...prev, created]);
-      setSelectedListId(created.id);
-      setNewListName('');
-    } catch (e) {
-      if (!handleAuthError(e)) {
-        setError(e instanceof Error ? e.message : 'Failed to create list');
-      }
-    }
-  };
-
-  const jumpToProblem = (neetId: number) => {
-    setExpanded((prev) => ({ ...prev, [neetId]: true }));
-    void loadHistory(neetId);
-    document.getElementById(`problem-${neetId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
-
-  const rightPanel = (
-    <aside className="panel right-column">
-      <section>
-        <h3>Latest solved (2)</h3>
-        <ul>
-          {(dashboard?.rightPanel.latestSolved ?? []).slice(0, 2).map((item) => (
-            <li key={item.neet250Id}>
-              <button className="link-button" onClick={() => jumpToProblem(item.neet250Id)}>
-                {item.orderIndex}. {item.title}
-              </button>
-            </li>
-          ))}
-          {!dashboard?.rightPanel.latestSolved?.length && <li className="muted">No solved problems yet.</li>}
-        </ul>
-      </section>
-      <section>
-        <h3>Next 4 unsolved</h3>
-        <ul>
-          {(dashboard?.rightPanel.nextUnsolved ?? []).slice(0, 4).map((item) => (
-            <li key={item.neet250Id}>
-              <button className="link-button" onClick={() => jumpToProblem(item.neet250Id)}>
-                {item.orderIndex}. {item.title}
-              </button>
-            </li>
-          ))}
-          {!dashboard?.rightPanel.nextUnsolved?.length && <li className="muted">Everything solved 🎉</li>}
-        </ul>
-      </section>
-    </aside>
-  );
-
-  return (
-    <main className="page" data-theme={theme}>
-      <header>
-        <div>
-          <h1>CodeClimb</h1>
-          <p className="muted">Track attempts with fast inline editing and autosave.</p>
-        </div>
-        <nav>
-          <select value={theme} onChange={(event) => setTheme(event.target.value as ThemeId)}>
-            {THEME_OPTIONS.map((item) => (
-              <option key={item.id} value={item.id}>
-                Theme: {item.label}
-              </option>
-            ))}
-          </select>
-          <Link to="/dashboard">Dashboard route</Link>
-          <button onClick={() => setToken(null)}>Logout</button>
-        </nav>
-      </header>
-
-      {error && <p className="error">{error}</p>}
-      {loading && <p className="muted">Loading data…</p>}
-
-      <div className="layout">
-        <aside className="panel left-column">
-          <h3>Dashboard stats</h3>
-          <p>
-            <strong>Last activity:</strong> {dashboard?.lastActivityAt ?? '—'}
-          </p>
-          <p>
-            <strong>Current streak:</strong> {dashboard?.streakCurrent ?? 0}
-          </p>
-          <p>
-            <strong>Avg streak:</strong> {dashboard?.streakAverage?.toFixed(2) ?? '0.00'}
-          </p>
-          <p>
-            <strong>Farthest category:</strong> {dashboard?.farthestCategory ?? '—'}
-          </p>
-          <p>
-            <strong>Total solved:</strong> {dashboard?.solvedCounts.totalSolved ?? 0}
-          </p>
-          <label>
-            Dashboard scope
-            <select value={dashboardScope} onChange={(event) => setDashboardScope(event.target.value as 'latest' | 'list' | 'all')}>
-              <option value="latest">Latest list</option>
-              <option value="list" disabled={!selectedListId}>This list</option>
-              <option value="all">All lists</option>
-            </select>
-          </label>
-          <ul>
-            {(dashboard?.solvedCounts.byCategory ?? []).map((row) => (
-              <li key={row.category}>
-                {row.category}: {row.solvedCount}/{row.totalInCategory}
-              </li>
-            ))}
-          </ul>
-          <hr />
-          <h4>Lists</h4>
-          <div className="list-controls">
-            <select value={selectedListId ?? ''} onChange={(event) => setSelectedListId(event.target.value)}>
-              {lists.map((list) => (
-                <option key={list.id} value={list.id}>
-                  {list.name}
-                </option>
-              ))}
-            </select>
-            <input
-              placeholder="new list name"
-              value={newListName}
-              onChange={(event) => setNewListName(event.target.value)}
-            />
-            <button onClick={() => void createList()}>Create list</button>
-          </div>
-        </aside>
-
-        {rightPanel}
-
-        <section className="panel table-panel">
-          <h2>Problems ({visibleProblems.length})</h2>
-          <div className="filters">
-            <label>
-              Category
-              <select value={selectedCategory} onChange={(event) => setSelectedCategory(event.target.value)}>
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Solved
-              <select
-                value={solvedFilter}
-                onChange={(event) => setSolvedFilter(event.target.value as 'all' | 'solved' | 'unsolved')}
-              >
-                <option value="all">All</option>
-                <option value="solved">Solved</option>
-                <option value="unsolved">Unsolved</option>
-              </select>
-            </label>
-            <label>
-              Search
-              <input
-                placeholder="Search title"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            </label>
-          </div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Problem</th>
-                <th>Category</th>
-                <th>Difficulty</th>
-                <th>LeetCode</th>
-                <th>Solved</th>
-                <th>Confidence</th>
-                <th>Attempts</th>
-                <th>Time (min)</th>
-                <th>Time Complexity</th>
-                <th>Space Complexity</th>
-                <th>Notes</th>
-                <th>Date Solved</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibleProblems.map((problem) => {
-                const row = rows[problem.neet250Id];
-                const draft = row?.draft ?? EMPTY_ATTEMPT;
-                const timeOptions = getComplexityOptions(draft.timeComplexity);
-                const spaceOptions = getComplexityOptions(draft.spaceComplexity);
-                const notesExpanded = expandedNotes[problem.neet250Id];
-                const notesPreview = (draft.notes ?? '').trim();
-                const showExpand = notesPreview.length > 32;
-
-                return (
-                  <Fragment key={problem.neet250Id}>
-                    <tr id={`problem-${problem.neet250Id}`}>
-                      <td>
-                        {problem.orderIndex}. {problem.title}
-                      </td>
-                      <td>{problem.category}</td>
-                      <td>{problem.difficulty}</td>
-                      <td>
-                        {problem.leetcodeSlug ? (
-                          <a href={`https://leetcode.com/problems/${problem.leetcodeSlug}/`} target="_blank" rel="noreferrer">
-                            link
-                          </a>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td>
-                        <select
-                          value={draft.solved === null ? '' : String(draft.solved)}
-                          onChange={(event) =>
-                            scheduleSave(problem.neet250Id, (currentDraft) => ({
-                              ...currentDraft,
-                              solved: event.target.value === '' ? null : event.target.value === 'true',
-                            }))
-                          }
-                        >
-                          <option value="">—</option>
-                          <option value="true">Yes</option>
-                          <option value="false">No</option>
-                        </select>
-                      </td>
-                      <td>
-                        <select
-                          value={draft.confidence ?? ''}
-                          onChange={(event) =>
-                            scheduleSave(problem.neet250Id, (currentDraft) => ({
-                              ...currentDraft,
-                              confidence: event.target.value || null,
-                            }))
-                          }
-                        >
-                          <option value="">—</option>
-                          {CONFIDENCE_OPTIONS.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min={1}
-                          value={draft.attempts ?? ''}
-                          onChange={(event) =>
-                            scheduleSave(problem.neet250Id, (currentDraft) => ({
-                              ...currentDraft,
-                              attempts: event.target.value ? Number(event.target.value) : null,
-                            }))
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          min={0}
-                          value={draft.timeMinutes ?? ''}
-                          onChange={(event) =>
-                            scheduleSave(problem.neet250Id, (currentDraft) => ({
-                              ...currentDraft,
-                              timeMinutes: event.target.value ? Number(event.target.value) : null,
-                            }))
-                          }
-                        />
-                      </td>
-                      <td>
-                        <input
-                          list={`time-presets-${problem.neet250Id}`}
-                          value={draft.timeComplexity ?? ''}
-                          onChange={(event) =>
-                            scheduleSave(problem.neet250Id, (currentDraft) => ({
-                              ...currentDraft,
-                              timeComplexity: event.target.value || null,
-                            }))
-                          }
-                          onBlur={(event) =>
-                            scheduleSave(problem.neet250Id, (currentDraft) => ({
-                              ...currentDraft,
-                              timeComplexity: normalizeComplexity(event.target.value) || null,
-                            }))
-                          }
-                        />
-                        <datalist id={`time-presets-${problem.neet250Id}`}>
-                          {timeOptions.map((option) => (
-                            <option value={option} key={option} />
-                          ))}
-                        </datalist>
-                      </td>
-                      <td>
-                        <input
-                          list={`space-presets-${problem.neet250Id}`}
-                          value={draft.spaceComplexity ?? ''}
-                          onChange={(event) =>
-                            scheduleSave(problem.neet250Id, (currentDraft) => ({
-                              ...currentDraft,
-                              spaceComplexity: event.target.value || null,
-                            }))
-                          }
-                          onBlur={(event) =>
-                            scheduleSave(problem.neet250Id, (currentDraft) => ({
-                              ...currentDraft,
-                              spaceComplexity: normalizeComplexity(event.target.value) || null,
-                            }))
-                          }
-                        />
-                        <datalist id={`space-presets-${problem.neet250Id}`}>
-                          {spaceOptions.map((option) => (
-                            <option value={option} key={option} />
-                          ))}
-                        </datalist>
-                      </td>
-                      <td>
-                        <input
-                          title={draft.notes ?? ''}
-                          value={notesExpanded ? draft.notes ?? '' : notesPreview.slice(0, 32)}
-                          onChange={(event) =>
-                            scheduleSave(problem.neet250Id, (currentDraft) => ({
-                              ...currentDraft,
-                              notes: event.target.value || null,
-                            }))
-                          }
-                        />
-                        {showExpand && (
-                          <button
-                            className="tiny-button"
-                            onClick={() =>
-                              setExpandedNotes((prev) => ({ ...prev, [problem.neet250Id]: !prev[problem.neet250Id] }))
-                            }
-                          >
-                            {notesExpanded ? 'Less' : 'More'}
-                          </button>
-                        )}
-                      </td>
-                      <td>
-                        <input
-                          type="date"
-                          value={draft.dateSolved ?? ''}
-                          onChange={(event) =>
-                            scheduleSave(problem.neet250Id, (currentDraft) => ({
-                              ...currentDraft,
-                              dateSolved: event.target.value || null,
-                            }))
-                          }
-                        />
-                      </td>
-                      <td>
-                        <button onClick={() => scheduleSave(problem.neet250Id, () => ({ ...EMPTY_ATTEMPT }))}>Clear</button>
-                        <button
-                          onClick={() => {
-                            const next = !expanded[problem.neet250Id];
-                            setExpanded((prev) => ({ ...prev, [problem.neet250Id]: next }));
-                            if (next) {
-                              void loadHistory(problem.neet250Id);
-                            }
-                          }}
-                        >
-                          {expanded[problem.neet250Id] ? 'Hide' : 'History'}
-                        </button>
-                        {row?.status === 'saving' && <small> saving…</small>}
-                        {row?.status === 'error' && <small className="error"> save failed</small>}
-                      </td>
-                    </tr>
-                    {expanded[problem.neet250Id] && (
-                      <tr className="history-row">
-                        <td colSpan={13}>
-                          <ul className="history-list">
-                            {(historyByNeetId[problem.neet250Id] ?? []).map((attempt) => {
-                              const timeHistoryOptions = getComplexityOptions(attempt.timeComplexity);
-                              const spaceHistoryOptions = getComplexityOptions(attempt.spaceComplexity);
-                              return (
-                                <li key={attempt.id}>
-                                  <div>
-                                    <strong>{attempt.updatedAt}</strong> · solved={String(attempt.solved)}
-                                  </div>
-                                  <div className="history-edit">
-                                    <select
-                                      value={attempt.confidence ?? ''}
-                                      onChange={(event) =>
-                                        scheduleHistorySave(problem.neet250Id, attempt, (draft) => ({
-                                          ...draft,
-                                          confidence: event.target.value || null,
-                                        }))
-                                      }
-                                    >
-                                      <option value="">—</option>
-                                      {CONFIDENCE_OPTIONS.map((option) => (
-                                        <option key={option} value={option}>
-                                          {option}
-                                        </option>
-                                      ))}
-                                    </select>
-                                    <input
-                                      type="number"
-                                      min={1}
-                                      value={attempt.attempts ?? ''}
-                                      onChange={(event) =>
-                                        scheduleHistorySave(problem.neet250Id, attempt, (draft) => ({
-                                          ...draft,
-                                          attempts: event.target.value ? Number(event.target.value) : null,
-                                        }))
-                                      }
-                                    />
-                                    <input
-                                      list={`history-time-${attempt.id}`}
-                                      value={attempt.timeComplexity ?? ''}
-                                      onChange={(event) =>
-                                        scheduleHistorySave(problem.neet250Id, attempt, (draft) => ({
-                                          ...draft,
-                                          timeComplexity: event.target.value || null,
-                                        }))
-                                      }
-                                      onBlur={(event) =>
-                                        scheduleHistorySave(problem.neet250Id, attempt, (draft) => ({
-                                          ...draft,
-                                          timeComplexity: normalizeComplexity(event.target.value) || null,
-                                        }))
-                                      }
-                                    />
-                                    <datalist id={`history-time-${attempt.id}`}>
-                                      {timeHistoryOptions.map((option) => (
-                                        <option value={option} key={option} />
-                                      ))}
-                                    </datalist>
-                                    <input
-                                      list={`history-space-${attempt.id}`}
-                                      value={attempt.spaceComplexity ?? ''}
-                                      onChange={(event) =>
-                                        scheduleHistorySave(problem.neet250Id, attempt, (draft) => ({
-                                          ...draft,
-                                          spaceComplexity: event.target.value || null,
-                                        }))
-                                      }
-                                      onBlur={(event) =>
-                                        scheduleHistorySave(problem.neet250Id, attempt, (draft) => ({
-                                          ...draft,
-                                          spaceComplexity: normalizeComplexity(event.target.value) || null,
-                                        }))
-                                      }
-                                    />
-                                    <datalist id={`history-space-${attempt.id}`}>
-                                      {spaceHistoryOptions.map((option) => (
-                                        <option value={option} key={option} />
-                                      ))}
-                                    </datalist>
-                                    <button onClick={() => void deleteHistoryAttempt(problem.neet250Id, attempt.id)}>Delete</button>
-                                  </div>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </section>
-      </div>
-    </main>
-  );
-}
-
-function DashboardPage() {
-  const { token } = useAuth();
-  const [dashboard, setDashboard] = useState<Dashboard | null>(null);
-
-  useEffect(() => {
-    if (!token) {
-      return;
-    }
-    void api.getDashboard(token, 'latest').then(setDashboard);
-  }, [token]);
-
-  return (
-    <main className="page">
-      <h1>Dashboard</h1>
-      <p>Last activity: {dashboard?.lastActivityAt ?? '—'}</p>
-      <p>Current streak: {dashboard?.streakCurrent ?? 0}</p>
-      <p>Farthest category: {dashboard?.farthestCategory ?? '—'}</p>
-      <p>Average streak: {dashboard?.streakAverage ?? 0}</p>
-      <ul>
-        {(dashboard?.solvedCounts.byCategory ?? []).map((row) => (
-          <li key={row.category}>
-            {row.category}: {row.solvedCount}/{row.totalInCategory}
-          </li>
-        ))}
-      </ul>
-      <Link to="/">Back to problems</Link>
-    </main>
+    </Card>
   );
 }
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route
-        path="/"
-        element={
-          <AuthGuard>
-            <HomePage />
-          </AuthGuard>
-        }
-      />
-      <Route
-        path="/dashboard"
-        element={
-          <AuthGuard>
-            <DashboardPage />
-          </AuthGuard>
-        }
-      />
-    </Routes>
+    <AppShell>
+      <Routes>
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/problems" element={<ProblemsPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+      </Routes>
+    </AppShell>
   );
 }
