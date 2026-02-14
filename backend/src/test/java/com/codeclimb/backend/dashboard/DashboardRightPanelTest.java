@@ -120,6 +120,27 @@ class DashboardRightPanelTest {
     }
 
     @Test
+    void streaksAreZeroWhenNoAttemptDaysExist() throws Exception {
+        String token = signupAndGetToken("dashboard-streak-none@example.com");
+        createList(token, "No Days");
+
+        JsonNode dashboard = getDashboard(token);
+        assertThat(dashboard.get("streakCurrent").asInt()).isEqualTo(0);
+        assertThat(dashboard.get("streakAverage").asDouble()).isEqualTo(0.0);
+    }
+
+    @Test
+    void singleAttemptDayHasCurrentAndAverageStreakOfOne() throws Exception {
+        String token = signupAndGetToken("dashboard-streak-single@example.com");
+        UUID listId = createList(token, "Single Day");
+        createAttemptWithDate(token, listId, 1, LocalDate.now().toString());
+
+        JsonNode dashboard = getDashboard(token);
+        assertThat(dashboard.get("streakCurrent").asInt()).isEqualTo(1);
+        assertThat(dashboard.get("streakAverage").asDouble()).isEqualTo(1.0);
+    }
+
+    @Test
     void streakCurrentIsZeroWhenTodayHasNoAttemptDay() throws Exception {
         String token = signupAndGetToken("dashboard-streak-2@example.com");
         UUID listId = createList(token, "D");
@@ -142,6 +163,17 @@ class DashboardRightPanelTest {
 
         JsonNode dashboard = getDashboard(token);
         assertThat(dashboard.get("streakAverage").asDouble()).isEqualTo(2.0);
+    }
+
+    @Test
+    void streakCurrentBreaksOnGapDay() throws Exception {
+        String token = signupAndGetToken("dashboard-streak-gap@example.com");
+        UUID listId = createList(token, "Gap");
+        createAttemptWithDate(token, listId, 1, LocalDate.now().minusDays(2).toString());
+        createAttemptWithDate(token, listId, 2, LocalDate.now().toString());
+
+        JsonNode dashboard = getDashboard(token);
+        assertThat(dashboard.get("streakCurrent").asInt()).isEqualTo(1);
     }
 
     @Test

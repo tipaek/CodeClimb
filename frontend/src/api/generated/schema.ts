@@ -82,21 +82,10 @@ export type components = {
   category: string;
   solvedCount: number;
   totalInCategory: number;
-  easySolved: number;
-  mediumSolved: number;
-  hardSolved: number;
-};
-    DashboardCategoryAvgTime: {
-  category: string;
-  avgTimeMinutes: (number) | null;
 };
     DashboardSolvedCounts: {
   totalSolved: number;
   byCategory: (components['schemas']['DashboardCategorySolvedStats'])[];
-};
-    DashboardTimeAverages: {
-  overallAvgTimeMinutes: (number) | null;
-  byCategoryAvgTimeMinutes: (components['schemas']['DashboardCategoryAvgTime'])[];
 };
     DashboardRightPanel: {
   latestSolved: (components['schemas']['ProgressProblem'])[];
@@ -113,7 +102,6 @@ export type components = {
   farthestOrderIndex: (number) | null;
   farthestProblem: (Record<string, unknown>) | null;
   solvedCounts: components['schemas']['DashboardSolvedCounts'];
-  timeAverages: components['schemas']['DashboardTimeAverages'];
   rightPanel: components['schemas']['DashboardRightPanel'];
 };
     ProgressProblem: {
