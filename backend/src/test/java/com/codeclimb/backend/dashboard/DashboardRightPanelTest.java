@@ -20,6 +20,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -92,6 +93,16 @@ class DashboardRightPanelTest {
         assertThat(dashboard.at("/nextUnsolved/1/orderIndex").asInt()).isEqualTo(7);
         assertThat(dashboard.at("/nextUnsolved/2/orderIndex").asInt()).isEqualTo(8);
         assertThat(dashboard.at("/nextUnsolved/3/orderIndex").asInt()).isEqualTo(9);
+    }
+
+
+    @Test
+    void dashboardPreflightOptionsIsAllowedForDevOrigin() throws Exception {
+        mockMvc.perform(options("/dashboard")
+                        .header("Origin", "http://localhost:5173")
+                        .header("Access-Control-Request-Method", "GET")
+                        .header("Access-Control-Request-Headers", "authorization,content-type"))
+                .andExpect(status().isOk());
     }
 
     private JsonNode getDashboard(String token) throws Exception {
