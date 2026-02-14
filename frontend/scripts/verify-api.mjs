@@ -10,6 +10,7 @@ const after = readFileSync(generatedFile, 'utf8');
 
 const normalize = (source) => source.replace(/\r\n/g, '\n').trimEnd();
 const stripBanner = (source) => normalize(source).replace(/^\/\*\*[\s\S]*?\*\/\s*/, '');
+const canonicalize = (source) => stripBanner(source).replace(/\s+/g, '');
 
 if (before === after) {
   console.log('generated API files are up to date');
@@ -22,9 +23,9 @@ if (normalize(before) === normalize(after)) {
   process.exit(0);
 }
 
-if (stripBanner(before) === stripBanner(after)) {
+if (canonicalize(before) === canonicalize(after)) {
   writeFileSync(generatedFile, before, 'utf8');
-  console.log('generated API files are up to date (banner-only drift ignored)');
+  console.log('generated API files are up to date (format-only drift ignored)');
   process.exit(0);
 }
 
