@@ -48,12 +48,12 @@ function AppShell({ children }: { children: ReactNode }) {
               Logout
             </Button>
           ) : !isAuthRoute ? (
-            <Button onClick={openAuthCta}>Login</Button>
+            <Link to="/login">Login</Link>
           ) : null}
         </nav>
       </header>
-      <main className="content-shell">{children}</main>
-      {authCtaModal}
+      <main className={`content-shell${isAuthRoute ? ' content-shell--auth' : ''}`}>{children}</main>
+      {!isAuthRoute ? authCtaModal : null}
     </div>
   );
 }
