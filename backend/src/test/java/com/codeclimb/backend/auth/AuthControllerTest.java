@@ -1,6 +1,8 @@
 package com.codeclimb.backend.auth;
 
+import com.codeclimb.backend.repository.ListRepository;
 import com.codeclimb.backend.repository.UserRepository;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -37,17 +39,32 @@ class AuthControllerTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ListRepository listRepository;
+
     @BeforeEach
     void cleanUsers() {
+        listRepository.deleteAll();
         userRepository.deleteAll();
     }
 
     @Test
     void signupThenLogin() throws Exception {
         var signup = objectMapper.writeValueAsString(new SignupPayload("user@example.com", "password123", "America/Chicago"));
-        mockMvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
+        String signupBody = mockMvc.perform(post("/auth/signup").contentType(MediaType.APPLICATION_JSON).content(signup))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").isString());
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        JsonNode signupJson = objectMapper.readTree(signupBody);
+        String accessToken = signupJson.get("accessToken").asText();
+
+        mockMvc.perform(get("/lists").header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("NeetCode 250"))
+                .andExpect(jsonPath("$[0].templateVersion").value("neet250.v1"));
 
         var login = objectMapper.writeValueAsString(new LoginPayload("user@example.com", "password123"));
         mockMvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON).content(login))
