@@ -1,31 +1,79 @@
-# CodeClimb
+# CodeClimb 🧗‍♂️
 
-Leetcode tracker in web form.
+CodeClimb is a clean, fast NeetCode 250 tracker built for consistent practice. Track attempts with inline editing + autosave, visualize your streak and progress, and always know what to solve next.
 
-## Local development routing (frontend -> backend)
+**Live app:** https://codeclimb-app.vercel.app/
 
-Backend endpoints are rooted at `/` (for example `GET /dashboard`), so frontend requests should target backend origin + root paths.
+Built with multi-agent development (OpenAI Codex).
+CodeClimb was developed using a multi-agent workflow where agents worked in isolated feature branches, merged via PR review, with repo-level guardrails (AGENTS.md, UI_SPEC.md, OpenAPI-first contract, CI gates) to prevent drift and “agent gaming.”
 
-### Recommended setup (no proxy required)
+---
 
-1. Start backend on `http://localhost:8080`.
-2. Start frontend with:
+## What you can do
 
+- **Track NeetCode 250 progress** across categories and difficulties
+- **Log attempts quickly** (confidence, notes, time/space complexity, time taken, etc.)
+- **Inline edit + autosave** (no “Save” button workflow)
+- **Attempt history per problem** (edit or delete older entries)
+- **Dashboard insights**
+  - activity calendar + streaks
+  - farthest category / “level” progression
+  - “Up Next” list (latest solved + next unsolved problems)
+
+---
+
+## Tech stack
+
+- **Frontend:** React + TypeScript (Vercel)
+- **Backend:** Spring Boot (Java 17, Maven) (Google Cloud Run)
+- **Database:** Postgres (Neon) + Flyway migrations
+- **API:** OpenAPI-first contract + generated types for client safety
+
+---
+
+## Screenshots
+> <img width="1102" height="1102" alt="image" src="https://github.com/user-attachments/assets/e37285b1-28f8-4b82-a0ad-31be8e4fab94" />
+
+> <img width="1336" height="1088" alt="image" src="https://github.com/user-attachments/assets/f5e2e02b-abc7-4e8d-afbe-6ee0485ee15d" />
+
+
+
+---
+
+## Local development
+
+### Prerequisites
+- Node.js (npm)
+- Java 17
+- A Postgres database (local or Neon)
+
+### 1) Clone
 ```bash
-cd frontend
-VITE_API_BASE_URL=http://localhost:8080 npm run dev
+git clone <YOUR_REPO_URL>.git
+cd CodeClimb
 ```
 
-With this setup, frontend calls go directly to `http://localhost:8080/dashboard`, `http://localhost:8080/lists`, etc.
-
-### Optional Vite proxy convenience
-
-If you prefer same-origin API paths in dev, set:
-
-```bash
+### 2) Frontend
+```
 cd frontend
-VITE_API_BASE_URL=/api npm run dev
+npm ci
+npm run dev
 ```
 
-Vite proxies `/api/*` to backend (`http://localhost:8080` by default) and rewrites `/api/dashboard` -> `/dashboard`.
-Use `VITE_PROXY_TARGET` to point proxy to another backend URL if needed.
+### 3) Backend
+Set environmental variables:
+```
+export DATABASE_URL="jdbc:postgresql://<host>:<port>/<db>?sslmode=require"
+export DB_USER="<user>"
+export DB_PASSWORD="<password>"
+export JWT_SECRET="<long-random-secret>"
+```
+then run:
+```
+cd backend
+./mvnw spring-boot:run
+```
+Verify (from repo root):
+```
+make verify
+```
