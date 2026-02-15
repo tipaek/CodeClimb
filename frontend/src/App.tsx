@@ -95,6 +95,7 @@ function AppShell({ children }: { children: ReactNode }) {
 type DashboardLevel = { number: number; label: string };
 type DashboardAttempt = {
   attemptId: string | null;
+  solved: boolean | null;
   attempts: number | null;
   confidence: string | null;
   notes: string | null;
@@ -172,6 +173,7 @@ function normalizeAttempt(raw: unknown): DashboardAttempt | null {
   const source = raw as Record<string, unknown>;
   return {
     attemptId: typeof source.attemptId === 'string' ? source.attemptId : null,
+    solved: typeof source.solved === 'boolean' ? source.solved : null,
     attempts: typeof source.attempts === 'number' ? source.attempts : null,
     confidence: typeof source.confidence === 'string' ? source.confidence : null,
     notes: typeof source.notes === 'string' ? source.notes : null,
@@ -227,6 +229,7 @@ function resolveLevel(dashboard: Dashboard | null): DashboardLevel | null {
 function toDraft(card: DashboardCard): UpsertAttemptRequest {
   return {
     ...EMPTY_ATTEMPT,
+    solved: card.latestAttempt?.solved ?? null,
     attempts: card.latestAttempt?.attempts ?? null,
     confidence: card.latestAttempt?.confidence ?? null,
     notes: card.latestAttempt?.notes ?? null,
@@ -278,12 +281,14 @@ function ProgressDonut({
   totalByDifficulty,
   solvedTotal,
   totalProblems,
+  scopeControl,
   children,
 }: {
   solvedByDifficulty: Record<DifficultyLabel, number>;
   totalByDifficulty: Record<DifficultyLabel, number>;
   solvedTotal: number;
   totalProblems: number;
+  scopeControl?: ReactNode;
   children?: ReactNode;
 }) {
   const slices: Array<{ difficulty: DifficultyLabel; solved: number; total: number; color: string }> = [
@@ -297,6 +302,7 @@ function ProgressDonut({
 
   return (
     <div className="progress-chart-block" aria-label="Solved by difficulty">
+      {scopeControl ? <div className="progress-chart-scope">{scopeControl}</div> : null}
       <div className="progress-chart-wrap">
         <svg viewBox="0 0 120 120" className="progress-donut" role="img" aria-label="Solved problems by difficulty">
           <circle cx="60" cy="60" r={radius} fill="none" stroke="color-mix(in srgb, var(--border) 50%, transparent)" strokeWidth="14" />
@@ -351,6 +357,10 @@ function DashboardPage() {
   const { token } = useAuth();
   const { openAuthCta, authCtaModal } = useAuthCtaModal();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [lists, setLists] = useState<ListItem[]>([]);
+  const [selectedStatsScope, setSelectedStatsScope] = useState('latest');
+  const [creatingListName, setCreatingListName] = useState('');
+  const [isCreatingList, setIsCreatingList] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progressProblems, setProgressProblems] = useState<ProblemWithLatestAttempt[]>([]);
@@ -362,7 +372,50 @@ function DashboardPage() {
   useEffect(() => {
     if (!token) {
       setDashboard(null);
+      setLists([]);
       setError(null);
+      setSelectedStatsScope('latest');
+      return;
+    }
+    const loadLists = async () => {
+      try {
+        const loadedLists = await api.getLists(token);
+        setLists(loadedLists);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load lists');
+      }
+    };
+    void loadLists();
+  }, [token]);
+
+  const getScopePayload = () => {
+    if (selectedStatsScope === 'all') {
+      return { scope: 'all' as const, listId: null as string | null };
+    }
+    if (selectedStatsScope === 'latest') {
+      return { scope: 'latest' as const, listId: null as string | null };
+    }
+    return { scope: 'list' as const, listId: selectedStatsScope };
+  };
+
+  const refreshDashboard = async () => {
+    if (!token) {
+      return;
+    }
+    const { scope, listId } = getScopePayload();
+    const latestDashboard = await api.getDashboard(token, scope, listId);
+    setDashboard(latestDashboard);
+    const fallbackListId = latestDashboard.latestListId ?? latestDashboard.listId ?? lists[0]?.id ?? null;
+    const progressListId = scope === 'list' ? listId : fallbackListId;
+    if (progressListId) {
+      setProgressProblems(await api.getProblems(token, progressListId));
+    } else {
+      setProgressProblems([]);
+    }
+  };
+
+  useEffect(() => {
+    if (!token) {
       return;
     }
 
@@ -370,20 +423,7 @@ function DashboardPage() {
       try {
         setLoading(true);
         setError(null);
-        const latestDashboard = await api.getDashboard(token, 'latest');
-        const latestListId = latestDashboard.latestListId ?? latestDashboard.listId ?? null;
-        if (latestListId) {
-          setDashboard(latestDashboard);
-          return;
-        }
-
-        const lists = await api.getLists(token);
-        if (lists.length > 0) {
-          setDashboard(await api.getDashboard(token, 'list', lists[0].id));
-          return;
-        }
-
-        setDashboard(latestDashboard);
+        await refreshDashboard();
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load dashboard');
       } finally {
@@ -392,7 +432,7 @@ function DashboardPage() {
     };
 
     void load();
-  }, [token]);
+  }, [token, selectedStatsScope, lists.length]);
 
   const activityDays = useMemo(() => {
     if (!token) {
@@ -402,7 +442,12 @@ function DashboardPage() {
     return Array.isArray(raw) ? raw.filter((item): item is string => typeof item === 'string') : [];
   }, [dashboard, token]);
 
-  const level = useMemo(() => (token ? resolveLevel(dashboard) : DEMO_LEVEL), [dashboard, token]);
+  const level = useMemo(() => {
+    if (!token) {
+      return DEMO_LEVEL;
+    }
+    return resolveLevel(dashboard) ?? { number: 1, label: 'Arrays & Hashing' };
+  }, [dashboard, token]);
 
   const upNextCards = useMemo(() => {
     if (!token) {
@@ -410,33 +455,17 @@ function DashboardPage() {
     }
     const raw = (dashboard as unknown as { rightPanel?: { nextUnsolved?: unknown } })?.rightPanel?.nextUnsolved;
     const normalized = normalizeCards(raw);
-    return normalized.length > 0 ? normalized.slice(0, 5) : FALLBACK_CARDS;
+    return normalized.length > 0 ? normalized : FALLBACK_CARDS;
   }, [dashboard, token]);
 
-  const targetListId = dashboard?.latestListId ?? dashboard?.listId ?? null;
-
-  useEffect(() => {
-    if (!token || !targetListId) {
-      setProgressProblems([]);
-      return;
-    }
-    const loadProblems = async () => {
-      try {
-        setProgressProblems(await api.getProblems(token, targetListId));
-      } catch {
-        setProgressProblems([]);
-      }
-    };
-    void loadProblems();
-  }, [targetListId, token]);
-
-  const progressSourceProblems = token ? progressProblems : DEMO_PROBLEMS;
   const progressTotals = useMemo(() => {
+    const source = token ? progressProblems : DEMO_PROBLEMS;
     const base: Record<DifficultyLabel, number> = { Easy: 0, Medium: 0, Hard: 0 };
     const solved: Record<DifficultyLabel, number> = { Easy: 0, Medium: 0, Hard: 0 };
-    for (const problem of progressSourceProblems) {
-      const difficulty = (problem.difficulty === 'Easy' || problem.difficulty === 'Medium' || problem.difficulty === 'Hard') ? problem.difficulty : null;
-      if (!difficulty) {
+
+    for (const problem of source) {
+      const difficulty = problem.difficulty === 'E' ? 'Easy' : problem.difficulty === 'M' ? 'Medium' : problem.difficulty === 'H' ? 'Hard' : (problem.difficulty as DifficultyLabel);
+      if (difficulty !== 'Easy' && difficulty !== 'Medium' && difficulty !== 'Hard') {
         continue;
       }
       base[difficulty] += 1;
@@ -444,10 +473,24 @@ function DashboardPage() {
         solved[difficulty] += 1;
       }
     }
-    const totalSolved = solved.Easy + solved.Medium + solved.Hard;
-    const totalProblems = base.Easy + base.Medium + base.Hard;
-    return { solved, base, totalSolved, totalProblems };
-  }, [progressSourceProblems]);
+
+    return {
+      base,
+      solved,
+      totalSolved: solved.Easy + solved.Medium + solved.Hard,
+      totalProblems: base.Easy + base.Medium + base.Hard,
+    };
+  }, [progressProblems, token]);
+
+  const targetListId = useMemo(() => {
+    if (!token) {
+      return null;
+    }
+    if (selectedStatsScope !== 'latest' && selectedStatsScope !== 'all') {
+      return selectedStatsScope;
+    }
+    return dashboard?.latestListId ?? dashboard?.listId ?? lists[0]?.id ?? null;
+  }, [dashboard?.latestListId, dashboard?.listId, lists, selectedStatsScope, token]);
 
   useEffect(() => {
     upNextStateRef.current = upNextState;
@@ -455,16 +498,17 @@ function DashboardPage() {
 
   useEffect(() => {
     setUpNextState((current) => {
-      const next: Record<number, UpNextState> = {};
+      const next = { ...current };
       for (const card of upNextCards) {
-        const existing = current[card.neet250Id];
-        next[card.neet250Id] =
-          existing ?? {
-            attemptId: card.latestAttempt?.attemptId ?? null,
-            draft: toDraft(card),
-            status: 'idle',
-            error: null,
-          };
+        if (next[card.neet250Id]) {
+          continue;
+        }
+        next[card.neet250Id] = {
+          attemptId: card.latestAttempt?.attemptId ?? null,
+          draft: toDraft(card),
+          status: 'idle',
+          error: null,
+        };
       }
       return next;
     });
@@ -474,29 +518,28 @@ function DashboardPage() {
     if (!token || !targetListId) {
       return;
     }
+
     const run = async (retry = false) => {
       if (!upNextStateRef.current[card.neet250Id]?.attemptId && isEmptyAttemptPayload(draft)) {
         return;
       }
       const version = (requestVersionRef.current[card.neet250Id] ?? 0) + 1;
       requestVersionRef.current[card.neet250Id] = version;
-      setUpNextState((current) => ({
-        ...current,
+      setUpNextState((state) => ({
+        ...state,
         [card.neet250Id]: {
-          ...(current[card.neet250Id] ?? { attemptId: null, draft }),
+          ...(state[card.neet250Id] ?? { attemptId: null, draft }),
           draft,
           status: 'saving',
           error: null,
         },
       }));
 
-      const existingAttemptId = upNextStateRef.current[card.neet250Id]?.attemptId ?? null;
-
       try {
+        const existingAttemptId = upNextStateRef.current[card.neet250Id]?.attemptId ?? null;
         const saved = existingAttemptId
           ? await api.patchAttempt(token, existingAttemptId, draft)
           : await api.createAttempt(token, targetListId, card.neet250Id, draft);
-
         if (requestVersionRef.current[card.neet250Id] !== version) {
           return;
         }
@@ -510,18 +553,33 @@ function DashboardPage() {
             error: null,
           },
         }));
+        await refreshDashboard();
       } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : 'Couldn’t save. Retry';
         const apiError = e instanceof ApiError ? e : null;
         if (!retry && apiError?.status === 0) {
           window.setTimeout(() => {
-            void run(true);
+            if (requestVersionRef.current[card.neet250Id] === version) {
+              void run(true);
+            }
           }, 2000);
+          return;
+        }
+        if (apiError?.status === 400 && !upNextStateRef.current[card.neet250Id]?.attemptId && isEmptyAttemptPayload(draft)) {
+          setUpNextState((current) => ({
+            ...current,
+            [card.neet250Id]: {
+              ...(current[card.neet250Id] ?? { draft, attemptId: null }),
+              draft,
+              status: 'idle',
+              error: null,
+            },
+          }));
           return;
         }
         if (requestVersionRef.current[card.neet250Id] !== version) {
           return;
         }
+        const errorMessage = e instanceof Error ? e.message : 'Couldn’t save. Retry';
         setUpNextState((current) => ({
           ...current,
           [card.neet250Id]: {
@@ -547,7 +605,7 @@ function DashboardPage() {
     }, 700);
   };
 
-  const updateField = (card: DashboardCard, updates: Partial<UpsertAttemptRequest>) => {
+  const updateField = (card: DashboardCard, updates: Partial<UpsertAttemptRequest>, immediate = false) => {
     if (!token) {
       openAuthCta();
       return;
@@ -563,7 +621,29 @@ function DashboardPage() {
         error: null,
       },
     }));
-    saveAttempt(card, nextDraft);
+    saveAttempt(card, nextDraft, immediate ? { immediate: true } : undefined);
+  };
+
+  const createListFromDashboard = async () => {
+    if (!token) {
+      openAuthCta();
+      return;
+    }
+    const nextName = creatingListName.trim();
+    if (!nextName) {
+      return;
+    }
+    try {
+      setError(null);
+      const created = await api.createList(token, { name: nextName, templateVersion: 'neet250.v1' });
+      const loadedLists = await api.getLists(token);
+      setLists(loadedLists);
+      setCreatingListName('');
+      setIsCreatingList(false);
+      setSelectedStatsScope(created.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create list');
+    }
   };
 
   const currentMonthLabel = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date());
@@ -619,6 +699,46 @@ function DashboardPage() {
             totalByDifficulty={progressTotals.base}
             solvedTotal={progressTotals.totalSolved}
             totalProblems={progressTotals.totalProblems}
+            scopeControl={
+              <>
+                <div className="dashboard-scope-control">
+                  <Select
+                    className="dashboard-scope-select"
+                    value={selectedStatsScope}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      if (value === '__create__') {
+                        setIsCreatingList(true);
+                        return;
+                      }
+                      setIsCreatingList(false);
+                      setSelectedStatsScope(value);
+                    }}
+                    onClick={!token ? openAuthCta : undefined}
+                  >
+                    <option value="latest">Latest list</option>
+                    <option value="all">All lists</option>
+                    {lists.map((list) => (
+                      <option key={list.id} value={list.id}>
+                        {list.name}
+                      </option>
+                    ))}
+                    <option value="__create__">+ Create new list</option>
+                  </Select>
+                </div>
+                {isCreatingList ? (
+                  <div className="dashboard-create-list">
+                    <Input
+                      value={creatingListName}
+                      placeholder="New list name"
+                      onChange={(event) => setCreatingListName(event.target.value)}
+                      onFocus={!token ? openAuthCta : undefined}
+                    />
+                    <Button onClick={() => void createListFromDashboard()}>Create</Button>
+                  </div>
+                ) : null}
+              </>
+            }
           >
             <div className="mini-stats">
               <div className="mini-stat-tile">
@@ -652,24 +772,26 @@ function DashboardPage() {
               return (
                 <article key={card.neet250Id} className="up-next-card">
                   <div className="up-next-title-row">
+                    <button
+                      type="button"
+                      className={`solved-toggle dashboard-solved-toggle ${state.draft.solved ? 'is-on' : ''}`}
+                      aria-pressed={state.draft.solved === true}
+                      onClick={() => updateField(card, { solved: state.draft.solved === true ? false : true, dateSolved: state.draft.solved === true ? null : new Date().toISOString().slice(0, 10) }, true)}
+                    >
+                      ✓
+                    </button>
                     <div>
-                      <h3>{card.title}</h3>
+                      <h3>
+                        <Link to="/problems" onClick={!token ? (event) => { event.preventDefault(); openAuthCta(); } : undefined}>{card.title}</Link>
+                      </h3>
                       <p className="muted">{card.category}</p>
                     </div>
                     <Pill>{`#${card.orderIndex || '—'}`}</Pill>
                   </div>
                   <div className="up-next-fields">
-                    <Input
-                      value={state.draft.attempts ?? ''}
-                      inputMode="numeric"
-                      placeholder="Attempts"
-                      onChange={(event) => {
-                        const value = event.target.value.trim();
-                        updateField(card, { attempts: value ? Number(value) : null });
-                      }}
-                      onFocus={!token ? openAuthCta : undefined}
-                    />
+                    <Button className="up-next-attempt-button" variant="ghost" onClick={() => updateField(card, { attempts: (state.draft.attempts ?? 0) + 1 }, true)}>Add attempt</Button>
                     <Select
+                      className="up-next-confidence-select"
                       value={state.draft.confidence ?? ''}
                       onChange={(event) => updateField(card, { confidence: event.target.value || null })}
                       onClick={!token ? openAuthCta : undefined}
@@ -681,13 +803,13 @@ function DashboardPage() {
                     </Select>
                     <Input
                       value={state.draft.notes ?? ''}
-                      placeholder="Quick note"
+                      placeholder="Notes"
                       onChange={(event) => updateField(card, { notes: event.target.value || null })}
                       onFocus={!token ? openAuthCta : undefined}
                     />
                   </div>
                   <div className="up-next-actions">
-                    <Button variant="secondary" onClick={token ? undefined : openAuthCta}>Open problem</Button>
+                    {state.draft.attempts ? <span className="muted">Attempts: {state.draft.attempts}</span> : <span className="muted">No attempts yet</span>}
                     {state.status === 'saving' ? <span className="muted">Saving...</span> : null}
                     {state.status === 'error' ? (
                       <button
