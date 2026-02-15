@@ -211,7 +211,7 @@ public class DashboardService {
         }
 
         UserEntity user = userRepository.findById(userId).orElseThrow(() -> new BadRequestException("User not found"));
-        LocalDate today = LocalDate.now(resolveZone(user.getTimezone()));
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         int streakCurrent = computeCurrentStreak(attemptDays, today);
         double streakAverage = computeAverageStreak(attemptDays);
 

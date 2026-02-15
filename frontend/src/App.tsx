@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError } from './api';
 import { useAuth } from './auth';
-import { EMPTY_ATTEMPT, isEmptyAttemptPayload } from './attempts';
+import { EMPTY_ATTEMPT, getComplexityOptions, isEmptyAttemptPayload } from './attempts';
 import { Button, Card, Input, Pill, Select } from './components/primitives';
 import { useAuthCtaModal } from './hooks/useAuthCtaModal';
 import { THEME_OPTIONS, useTheme } from './theme';
@@ -190,6 +190,29 @@ function getProblemSolved(problem: ProblemWithLatestAttempt, editorState?: Upser
   }
   const latestAttempt = problem.latestAttempt as Record<string, unknown> | null;
   return latestAttempt?.solved === true;
+}
+
+function getConfidenceTone(confidence: string | null | undefined): 'low' | 'medium' | 'high' | 'unset' {
+  if (confidence === 'LOW') return 'low';
+  if (confidence === 'MEDIUM') return 'medium';
+  if (confidence === 'HIGH') return 'high';
+  return 'unset';
+}
+
+function getComplexityTone(value: string | null | undefined): 'fast' | 'moderate' | 'slow' | 'unset' {
+  if (!value) return 'unset';
+  if (value === 'O(1)' || value === 'O(log n)' || value === 'O(n)') return 'fast';
+  if (value === 'O(n log n)' || value === 'O(n^2)') return 'moderate';
+  return 'slow';
+}
+
+function getLatestAttemptMeta(problem: ProblemWithLatestAttempt): { attempts: number | null; updatedAt: string | null; timeMinutes: number | null } {
+  const latest = problem.latestAttempt as Record<string, unknown> | null;
+  return {
+    attempts: typeof latest?.attempts === 'number' ? latest.attempts : null,
+    updatedAt: typeof latest?.updatedAt === 'string' ? latest.updatedAt : null,
+    timeMinutes: typeof latest?.timeMinutes === 'number' ? latest.timeMinutes : null,
+  };
 }
 
 function ProgressDonut({
@@ -662,7 +685,6 @@ function ProblemsPage() {
     timeComplexity: typeof attempt?.timeComplexity === 'string' ? attempt.timeComplexity : null,
     spaceComplexity: typeof attempt?.spaceComplexity === 'string' ? attempt.spaceComplexity : null,
     notes: typeof attempt?.notes === 'string' ? attempt.notes : null,
-    problemUrl: typeof attempt?.problemUrl === 'string' ? attempt.problemUrl : null,
   });
 
   useEffect(() => {
@@ -885,7 +907,6 @@ function ProblemsPage() {
     <section className="stack-24 problems-page">
       <div>
         <h1>Problems</h1>
-        <p className="muted">Let's get tracking.</p>
       </div>
       <Card>
         <div className="problems-toolbar">
@@ -947,57 +968,119 @@ function ProblemsPage() {
                     {items.map((problem) => {
                       const state = editorState[problem.neet250Id] ?? { attemptId: null, draft: EMPTY_ATTEMPT, status: 'idle' as SaveState, error: null, history: [] };
                       const drawerOpen = expandedProblems[problem.neet250Id] ?? false;
-                      const difficultyTone = problem.difficulty === 'Easy' ? 'success' : problem.difficulty === 'Hard' ? 'warning' : 'default';
+                      const latestMeta = getLatestAttemptMeta(problem);
+                      const attemptsCount = state.draft.attempts ?? latestMeta.attempts ?? state.history.length;
+                      const lastAttemptLabel = latestMeta.updatedAt ? new Date(latestMeta.updatedAt).toLocaleDateString() : null;
+                      const timeComplexityOptions = getComplexityOptions(state.draft.timeComplexity);
+                      const spaceComplexityOptions = getComplexityOptions(state.draft.spaceComplexity);
+                      const toggleProblemDrawer = () => {
+                        if (!drawerOpen) {
+                          void loadHistory(problem);
+                        }
+                        setExpandedProblems((prev) => ({ ...prev, [problem.neet250Id]: !drawerOpen }));
+                      };
                       return (
-                        <article className="problem-row-card" key={problem.neet250Id}>
-                          <div className="problem-row-main">
+                        <article className={`problem-row-card ${state.draft.solved ? 'is-solved' : ''}`} key={problem.neet250Id}>
+                          <div className="problem-row-main" onClick={toggleProblemDrawer}>
                             <button
                               type="button"
                               className={`solved-toggle ${state.draft.solved ? 'is-on' : ''}`}
                               aria-pressed={state.draft.solved === true}
-                              onClick={() => updateDraft(problem, { solved: state.draft.solved === true ? false : true, dateSolved: state.draft.solved === true ? null : new Date().toISOString().slice(0, 10) }, true)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                updateDraft(problem, { solved: state.draft.solved === true ? false : true, dateSolved: state.draft.solved === true ? null : new Date().toISOString().slice(0, 10) }, true);
+                              }}
                             >
                               ✓
                             </button>
                             <div className="problem-row-title">
                               <div className="problem-title-line">
-                                <Pill tone={difficultyTone}>{problem.difficulty}</Pill>
-                                <a className="problem-link" href={`https://leetcode.com/problems/${problem.leetcodeSlug}/`} target="_blank" rel="noreferrer" onClick={!token ? (e) => { e.preventDefault(); openAuthCta(); } : undefined}>
+                                <a
+                                  className="problem-link"
+                                  href={`https://leetcode.com/problems/${problem.leetcodeSlug}/`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!token) {
+                                      e.preventDefault();
+                                      openAuthCta();
+                                    }
+                                  }}
+                                >
                                   {problem.title}
                                 </a>
                               </div>
+                              <div className="problem-meta-row">
+                                <span className="problem-category">{problem.category}</span>
+                                <span className={`difficulty-pill difficulty-pill--${problem.difficulty.toLowerCase()}`}>{problem.difficulty}</span>
+                                {state.draft.confidence ? (
+                                  <span className={`confidence-pill confidence-pill--${getConfidenceTone(state.draft.confidence)}`}>{state.draft.confidence.toLowerCase()}</span>
+                                ) : null}
+                                {attemptsCount > 0 ? <span className="meta-badge">Attempts: {attemptsCount}</span> : null}
+                                {lastAttemptLabel ? <span className="meta-badge">Last attempted: {lastAttemptLabel}</span> : null}
+                                {latestMeta.timeMinutes ? <span className="meta-badge">Avg time: {latestMeta.timeMinutes}m</span> : null}
+                              </div>
                             </div>
-                            <Button
-                              variant="ghost"
-                              onClick={() => {
-                                if (!drawerOpen) {
-                                  void loadHistory(problem);
-                                }
-                                setExpandedProblems((prev) => ({ ...prev, [problem.neet250Id]: !drawerOpen }));
-                              }}
-                            >
-                              {drawerOpen ? 'Hide details' : 'Details'}
-                            </Button>
+                            <span className="problem-expand-hint muted">{drawerOpen ? 'Hide details' : 'Show details'}</span>
                           </div>
                           {drawerOpen ? (
                             <div className="details-drawer">
+                              <div className="details-header">
+                                <strong>Details</strong>
+                                {state.status === 'saving' ? <span className="muted">Saving...</span> : null}
+                              </div>
                               <div className="drawer-fields">
-                                <Input type="date" value={state.draft.dateSolved ?? ''} onChange={(event) => updateDraft(problem, { dateSolved: event.target.value || null })} />
-                                <Input type="number" placeholder="Minutes" value={state.draft.timeMinutes ?? ''} onChange={(event) => updateDraft(problem, { timeMinutes: event.target.value ? Number(event.target.value) : null })} />
-                                <Input type="number" placeholder="Attempts" value={state.draft.attempts ?? ''} onChange={(event) => updateDraft(problem, { attempts: event.target.value ? Number(event.target.value) : null })} />
-                                <Input placeholder="Time complexity" value={state.draft.timeComplexity ?? ''} onChange={(event) => updateDraft(problem, { timeComplexity: event.target.value || null })} />
-                                <Input placeholder="Space complexity" value={state.draft.spaceComplexity ?? ''} onChange={(event) => updateDraft(problem, { spaceComplexity: event.target.value || null })} />
-                                <Select value={state.draft.confidence ?? ''} onChange={(event) => updateDraft(problem, { confidence: event.target.value || null })}>
-                                  <option value="">Confidence</option>
-                                  <option value="LOW">Low</option>
-                                  <option value="MEDIUM">Medium</option>
-                                  <option value="HIGH">High</option>
-                                </Select>
-                                <Input className="drawer-full" placeholder="Problem URL" value={state.draft.problemUrl ?? ''} onChange={(event) => updateDraft(problem, { problemUrl: event.target.value || null })} />
+                                <label className="drawer-field">
+                                  <span className="toolbar-label">Confidence</span>
+                                  <Select
+                                    className={`compact-select confidence-select confidence-select--${getConfidenceTone(state.draft.confidence)}`}
+                                    value={state.draft.confidence ?? ''}
+                                    onChange={(event) => updateDraft(problem, { confidence: event.target.value || null })}
+                                  >
+                                    <option value="">Select confidence</option>
+                                    <option value="LOW">Low</option>
+                                    <option value="MEDIUM">Medium</option>
+                                    <option value="HIGH">High</option>
+                                  </Select>
+                                </label>
+                                <label className="drawer-field">
+                                  <span className="toolbar-label">Time complexity</span>
+                                  <Select
+                                    className={`compact-select complexity-select complexity-select--${getComplexityTone(state.draft.timeComplexity)}`}
+                                    value={state.draft.timeComplexity ?? ''}
+                                    onChange={(event) => updateDraft(problem, { timeComplexity: event.target.value || null })}
+                                  >
+                                    <option value="">Select complexity</option>
+                                    {timeComplexityOptions.map((option) => <option key={`time-${option}`} value={option}>{option}</option>)}
+                                  </Select>
+                                </label>
+                                <label className="drawer-field">
+                                  <span className="toolbar-label">Space complexity</span>
+                                  <Select
+                                    className={`compact-select complexity-select complexity-select--${getComplexityTone(state.draft.spaceComplexity)}`}
+                                    value={state.draft.spaceComplexity ?? ''}
+                                    onChange={(event) => updateDraft(problem, { spaceComplexity: event.target.value || null })}
+                                  >
+                                    <option value="">Select complexity</option>
+                                    {spaceComplexityOptions.map((option) => <option key={`space-${option}`} value={option}>{option}</option>)}
+                                  </Select>
+                                </label>
                                 <textarea className="cc-input drawer-full drawer-textarea" placeholder="Notes" value={state.draft.notes ?? ''} onChange={(event) => updateDraft(problem, { notes: event.target.value || null })} />
                               </div>
+                              <details className="advanced-panel">
+                                <summary>Advanced</summary>
+                                <div className="attempts-stepper">
+                                  <span className="toolbar-label">Attempts</span>
+                                  <div className="attempts-controls">
+                                    <button type="button" className="stepper-btn" onClick={() => updateDraft(problem, { attempts: Math.max(0, (state.draft.attempts ?? 0) - 1) || null }, true)}>−</button>
+                                    <span>{state.draft.attempts ?? 0}</span>
+                                    <button type="button" className="stepper-btn" onClick={() => updateDraft(problem, { attempts: (state.draft.attempts ?? 0) + 1 }, true)}>+</button>
+                                    <Button variant="ghost" onClick={() => updateDraft(problem, { attempts: (state.draft.attempts ?? 0) + 1 }, true)}>Add attempt</Button>
+                                  </div>
+                                </div>
+                              </details>
                               <div className="drawer-status-row">
-                                {state.status === 'saving' ? <span className="muted">Saving...</span> : null}
                                 {state.status === 'error' ? (
                                   <button className="inline-retry" onClick={() => scheduleSave(problem, state.draft, { immediate: true, retry: true })}>
                                     Couldn’t save. Retry
