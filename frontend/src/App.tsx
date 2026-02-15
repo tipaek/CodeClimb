@@ -370,7 +370,20 @@ function DashboardPage() {
       try {
         setLoading(true);
         setError(null);
-        setDashboard(await api.getDashboard(token, 'latest'));
+        const latestDashboard = await api.getDashboard(token, 'latest');
+        const latestListId = latestDashboard.latestListId ?? latestDashboard.listId ?? null;
+        if (latestListId) {
+          setDashboard(latestDashboard);
+          return;
+        }
+
+        const lists = await api.getLists(token);
+        if (lists.length > 0) {
+          setDashboard(await api.getDashboard(token, 'list', lists[0].id));
+          return;
+        }
+
+        setDashboard(latestDashboard);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load dashboard');
       } finally {
