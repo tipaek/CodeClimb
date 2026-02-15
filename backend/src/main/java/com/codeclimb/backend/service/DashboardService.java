@@ -84,6 +84,7 @@ public class DashboardService {
             return new DashboardDtos.DashboardResponse(scope.value, null, null, null, 0, 0d,
                     null, null, null,
                     new DashboardDtos.SolvedCounts(0, List.of()),
+                    List.of(),
                     new DashboardDtos.RightPanel(List.of(), List.of()));
         }
 
@@ -215,6 +216,10 @@ public class DashboardService {
             """, userId, scopedListId)) {
             attemptDays.add(toLocalDate(value));
         }
+        List<String> activityDays = attemptDays.stream()
+                .sorted()
+                .map(LocalDate::toString)
+                .toList();
 
         UserEntity user = userRepository.findById(userId).orElseThrow(() -> new BadRequestException("User not found"));
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
@@ -231,6 +236,7 @@ public class DashboardService {
                 farthestOrder,
                 farthestProblem,
                 new DashboardDtos.SolvedCounts(totalSolved, solvedByCategory),
+                activityDays,
                 new DashboardDtos.RightPanel(latestSolved, nextUnsolved));
     }
 

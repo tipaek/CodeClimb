@@ -102,6 +102,7 @@ export type components = {
   farthestOrderIndex: (number) | null;
   farthestProblem: (Record<string, unknown>) | null;
   solvedCounts: components['schemas']['DashboardSolvedCounts'];
+  activityDays: string[];
   rightPanel: components['schemas']['DashboardRightPanel'];
 };
     ProgressProblem: {
