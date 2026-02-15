@@ -4,6 +4,9 @@ CodeClimb is a clean, fast NeetCode 250 tracker built for consistent practice. T
 
 **Live app:** https://codeclimb-app.vercel.app/
 
+Built with multi-agent development (OpenAI Codex).
+CodeClimb was developed using a multi-agent workflow where agents worked in isolated feature branches, merged via PR review, with repo-level guardrails (AGENTS.md, UI_SPEC.md, OpenAPI-first contract, CI gates) to prevent drift and “agent gaming.”
+
 ---
 
 ## What you can do
