@@ -6,6 +6,15 @@ const repoRoot = resolve(new URL('..', import.meta.url).pathname, '..');
 const inputSpec = resolve(repoRoot, 'contracts/openapi.yaml');
 const output = resolve(repoRoot, 'frontend/src/api/generated/schema.ts');
 
+
+const shouldUseCommittedSchema =
+  existsSync(output) && (process.env.VERCEL === '1' || process.env.CI === 'true');
+
+if (shouldUseCommittedSchema) {
+  console.log(`Using committed API schema at ${output}`);
+  process.exit(0);
+}
+
 const rubyScript = String.raw`
 require 'yaml'
 
@@ -68,7 +77,7 @@ let generated;
 try {
   generated = execFileSync('ruby', ['-e', rubyScript, inputSpec], { encoding: 'utf8' });
 } catch (error) {
-  if (error?.code === 'ENOENT' && existsSync(output)) {
+  if (existsSync(output) && (error?.code === 'ENOENT' || process.env.VERCEL === '1' || process.env.CI === 'true')) {
     console.warn(
       `Ruby is unavailable, skipping API generation and using existing ${output}. ` +
         'Run `npm run gen:api` in an environment with Ruby to refresh generated types.'
