@@ -50,18 +50,22 @@
 }
 
 :root[data-theme='wisteria-bloom'] {
-  --bg: #f6f1ff;
-  --surface: #fffafd;
-  --surface-soft: #f6edff;
-  --border: #decff1;
-  --text: #2f2147;
-  --muted: #695683;
-  --accent: #8c55dd;
-  --accent-strong: #7138c2;
-  --focus: #bd9af4;
-  --error: #ae3656;
-  --pill-bg: #f1e4ff;
-  --shadow-card: 0 12px 32px color-mix(in srgb, #512b78 16%, transparent);
+  --bg: #f4f0ff;
+  --surface: #fffbff;
+  --surface-soft: #f5ecff;
+  --border: #dbcdf6;
+  --text: #2f2251;
+  --muted: #6e5b90;
+  --accent: #9a66e3;
+  --accent-strong: #7e4ccc;
+  --focus: #c5a4fb;
+  --success: #58a77b;
+  --warning: #ba8652;
+  --danger: #be5b8f;
+  --error: #ad3e70;
+  --pill-bg: #efe2ff;
+  --shadow-card: 0 16px 34px color-mix(in srgb, #6f44aa 18%, transparent);
+  --shadow-soft: 0 9px 22px color-mix(in srgb, #6f44aa 14%, transparent);
 }
 
 :root[data-theme='night-sands'] {
@@ -108,6 +112,10 @@ p { margin: 0; }
   padding: var(--space-24);
 }
 
+:root[data-theme='wisteria-bloom'] .app-shell {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 26%, transparent) 0%, transparent 100%);
+}
+
 .app-header {
   display: flex;
   justify-content: space-between;
@@ -121,6 +129,13 @@ p { margin: 0; }
   font-weight: 800;
   color: var(--text);
   text-decoration: none;
+}
+
+:root[data-theme='wisteria-bloom'] .brand-link {
+  background: linear-gradient(130deg, #7f4dcb 0%, #b06ee7 48%, #da7fbd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .top-nav {
@@ -148,6 +163,11 @@ p { margin: 0; }
   box-shadow: var(--shadow-card);
 }
 
+:root[data-theme='wisteria-bloom'] .cc-card {
+  background: linear-gradient(160deg, color-mix(in srgb, var(--surface) 93%, #fff), color-mix(in srgb, var(--surface-soft) 88%, var(--surface)));
+  box-shadow: var(--shadow-card), inset 0 1px 0 color-mix(in srgb, #fff 75%, transparent);
+}
+
 .cc-button,
 .cc-input,
 .cc-select {
@@ -156,6 +176,11 @@ p { margin: 0; }
   background: var(--surface);
   color: var(--text);
   font: inherit;
+}
+
+:root[data-theme='wisteria-bloom'] .cc-input,
+:root[data-theme='wisteria-bloom'] .cc-select {
+  background: color-mix(in srgb, #fff 76%, var(--surface-soft));
 }
 
 .cc-button {
@@ -233,6 +258,10 @@ a:focus-visible {
 .cc-pill--success { background: #daf5e6; color: #135a34; }
 .cc-pill--warning { background: #fde7d2; color: #7c3d0a; }
 
+:root[data-theme='wisteria-bloom'] .cc-pill {
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border));
+}
+
 :root[data-theme='fresh-peach'] .cc-pill--success {
   background: color-mix(in srgb, var(--success) 18%, var(--surface));
   color: color-mix(in srgb, var(--success) 78%, #123324);
@@ -297,6 +326,13 @@ a:focus-visible {
     linear-gradient(160deg, var(--surface) 0%, color-mix(in srgb, var(--pill-bg) 58%, var(--surface)) 100%);
 }
 
+:root[data-theme='wisteria-bloom'] .progress-card {
+  background:
+    radial-gradient(circle at 92% -8%, color-mix(in srgb, #ffcae7 60%, transparent) 0%, transparent 45%),
+    radial-gradient(circle at 8% 98%, color-mix(in srgb, #cab0ff 46%, transparent) 0%, transparent 50%),
+    linear-gradient(160deg, color-mix(in srgb, var(--surface) 90%, #fff) 0%, color-mix(in srgb, var(--surface-soft) 92%, var(--surface)) 100%);
+}
+
 .progress-card-header {
   display: flex;
   justify-content: center;
@@ -311,6 +347,10 @@ a:focus-visible {
   font-weight: 700;
   background: color-mix(in srgb, var(--accent) 20%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+:root[data-theme='wisteria-bloom'] .progress-level-inline {
+  background: linear-gradient(130deg, color-mix(in srgb, var(--accent) 18%, #fff), color-mix(in srgb, #f6d8ff 52%, #fff));
 }
 
 .mini-stats {
@@ -456,6 +496,10 @@ a:focus-visible {
   font-weight: 700;
 }
 
+:root[data-theme='wisteria-bloom'] .mini-calendar-day.is-active {
+  box-shadow: 0 5px 10px color-mix(in srgb, var(--accent) 23%, transparent);
+}
+
 .up-next-header,
 .up-next-title-row,
 .up-next-actions {
@@ -489,6 +533,10 @@ a:focus-visible {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
   box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+:root[data-theme='wisteria-bloom'] .up-next-card {
+  border-color: color-mix(in srgb, #c4a8ef 58%, var(--border));
 }
 
 .up-next-title-row h3 {
@@ -525,6 +573,12 @@ a:focus-visible {
   border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
   background: color-mix(in srgb, var(--surface) 78%, var(--surface-soft));
   box-shadow: var(--shadow-soft);
+}
+
+:root[data-theme='wisteria-bloom'] .problems-toolbar {
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, #ffcae7 28%, transparent) 0%, transparent 36%),
+    color-mix(in srgb, var(--surface) 80%, var(--surface-soft));
 }
 
 .toolbar-control {
@@ -573,6 +627,11 @@ a:focus-visible {
   background: color-mix(in srgb, var(--pill-bg) 50%, transparent);
 }
 
+:root[data-theme='wisteria-bloom'] .category-header {
+  padding: 8px 10px;
+  margin: -8px -10px 0;
+}
+
 .problem-list-stack { margin-top: var(--space-16); display: grid; gap: var(--space-16); }
 
 .problem-row-card {
@@ -586,6 +645,10 @@ a:focus-visible {
 .problem-row-card:hover {
   border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
   box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+:root[data-theme='wisteria-bloom'] .problem-row-card {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent);
 }
 
 .problem-row-card.is-solved {
@@ -687,6 +750,10 @@ a:focus-visible {
   background: color-mix(in srgb, var(--surface) 72%, var(--surface-soft));
   border-radius: 14px;
   padding: var(--space-16);
+}
+
+:root[data-theme='wisteria-bloom'] .details-drawer {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 78%, #fff), color-mix(in srgb, var(--surface-soft) 74%, var(--surface)));
 }
 
 .details-header {
