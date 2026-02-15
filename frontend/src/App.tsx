@@ -21,8 +21,28 @@ function AppShell({ children }: { children: ReactNode }) {
   const { token, setToken } = useAuth();
   const { openAuthCta, authCtaModal } = useAuthCtaModal();
   const location = useLocation();
+  const [isBackendReady, setIsBackendReady] = useState(false);
+  const [startupError, setStartupError] = useState<string | null>(null);
   const isProblemsRoute = location.pathname === '/problems';
   const isAuthRoute = location.pathname === '/login' || location.pathname === '/signup';
+
+  useEffect(() => {
+    let cancelled = false;
+    wakeBackend()
+      .then(() => {
+        if (!cancelled) {
+          setIsBackendReady(true);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setStartupError(error instanceof Error ? error.message : 'Failed to start backend service.');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="app-shell">
@@ -52,7 +72,21 @@ function AppShell({ children }: { children: ReactNode }) {
           ) : null}
         </nav>
       </header>
-      <main className={`content-shell${isAuthRoute ? ' content-shell--auth' : ''}`}>{children}</main>
+      <main
+        className={`content-shell${isAuthRoute ? ' content-shell--auth' : ''}${!isBackendReady ? ' content-shell--blocked' : ''}`}
+        aria-busy={!isBackendReady}
+      >
+        {children}
+      </main>
+      {!isBackendReady ? (
+        <div className="backend-startup-overlay" role="status" aria-live="polite">
+          <Card className="backend-startup-card stack-16">
+            <h2>Starting backend service…</h2>
+            <p className="muted">Waking the database connection for your first request.</p>
+            {startupError ? <p className="error">{startupError}</p> : <p className="muted">This can take a few seconds on cold start.</p>}
+          </Card>
+        </div>
+      ) : null}
       {!isAuthRoute ? authCtaModal : null}
     </div>
   );
@@ -82,6 +116,30 @@ type UpNextState = {
   status: SaveState;
   error: string | null;
 };
+
+
+let wakeBackendPromise: Promise<void> | null = null;
+
+function wakeBackend(): Promise<void> {
+  if (wakeBackendPromise) {
+    return wakeBackendPromise;
+  }
+  wakeBackendPromise = (async () => {
+    const maxAttempts = 8;
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        await api.wakeBackend();
+        return;
+      } catch {
+        if (attempt === maxAttempts - 1) {
+          throw new Error('Backend startup took longer than expected. Please refresh in a moment.');
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+  })();
+  return wakeBackendPromise;
+}
 
 const DEMO_ACTIVITY_DAYS = ['2026-02-02', '2026-02-04', '2026-02-05', '2026-02-09', '2026-02-12', '2026-02-13'];
 const DEMO_LEVEL: DashboardLevel = { number: 7, label: 'Trees' };
