@@ -189,6 +189,11 @@ p { margin: 0; }
 
 .content-shell { min-height: 60vh; }
 
+.content-shell--auth {
+  display: grid;
+  place-items: center;
+}
+
 .stack-24 { display: grid; gap: var(--space-24); }
 .stack-16 { display: grid; gap: var(--space-16); }
 
@@ -352,7 +357,7 @@ a:focus-visible {
 .clean-list { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--space-8); }
 .clean-list li { display: flex; justify-content: space-between; align-items: center; }
 .value-line { font-size: 24px; font-weight: 700; }
-.auth-card { max-width: 520px; }
+.auth-card { max-width: 520px; width: min(520px, 100%); }
 .muted { color: var(--muted); }
 .error { color: var(--error); font-weight: 500; }
 
