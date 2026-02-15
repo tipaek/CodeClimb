@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const repoRoot = resolve(new URL('..', import.meta.url).pathname, '..');
@@ -64,7 +64,20 @@ lines << '};'
 puts lines.join("\n")
 `;
 
-const generated = execFileSync('ruby', ['-e', rubyScript, inputSpec], { encoding: 'utf8' });
+let generated;
+try {
+  generated = execFileSync('ruby', ['-e', rubyScript, inputSpec], { encoding: 'utf8' });
+} catch (error) {
+  if (error?.code === 'ENOENT' && existsSync(output)) {
+    console.warn(
+      `Ruby is unavailable, skipping API generation and using existing ${output}. ` +
+        'Run `npm run gen:api` in an environment with Ruby to refresh generated types.'
+    );
+    process.exit(0);
+  }
+  throw error;
+}
+
 mkdirSync(resolve(repoRoot, 'frontend/src/api/generated'), { recursive: true });
 writeFileSync(output, `${generated}\n`);
 console.log(`Generated ${output}`);
