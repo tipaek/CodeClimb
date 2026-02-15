@@ -16,6 +16,16 @@ function joinApiUrl(path: string): string {
   return `${normalizedBase}${normalizedPath}`;
 }
 
+
+async function wakeProbe(path: string): Promise<boolean> {
+  try {
+    await fetch(joinApiUrl(path));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function request<T>(path: string, init: RequestInit = {}, token?: string | null): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set('Content-Type', 'application/json');
@@ -47,7 +57,7 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string |
 }
 
 export const api = {
-  wakeBackend: () => request<{ status?: string }>('/actuator/health'),
+  wakeBackend: () => wakeProbe('/actuator/health'),
   signup: (payload: SignupRequest) =>
     request<AuthResponse>('/auth/signup', { method: 'POST', body: JSON.stringify(payload) }),
   login: (payload: LoginRequest) =>

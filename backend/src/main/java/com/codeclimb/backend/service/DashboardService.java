@@ -59,7 +59,13 @@ public class DashboardService {
 
     public DashboardDtos.DashboardResponse getDashboard(UUID userId, String scopeInput, UUID listId) {
         DashboardScope scope = DashboardScope.from(scopeInput);
-        UUID latestListId = attemptEntryRepository.findLatestListForUser(userId).map(UUID::fromString).orElse(null);
+        UUID latestOwnedListId = listRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
+                .findFirst()
+                .map(ListEntity::getId)
+                .orElse(null);
+        UUID latestListId = attemptEntryRepository.findLatestListForUser(userId)
+                .map(UUID::fromString)
+                .orElse(latestOwnedListId);
         UUID scopedListId = null;
         if (scope == DashboardScope.LATEST) {
             scopedListId = latestListId;
