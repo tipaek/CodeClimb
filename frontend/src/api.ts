@@ -47,6 +47,7 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string |
 }
 
 export const api = {
+  wakeBackend: () => request<{ status?: string }>('/actuator/health'),
   signup: (payload: SignupRequest) =>
     request<AuthResponse>('/auth/signup', { method: 'POST', body: JSON.stringify(payload) }),
   login: (payload: LoginRequest) =>
