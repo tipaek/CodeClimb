@@ -176,6 +176,20 @@ class DashboardRightPanelTest {
         assertThat(dashboard.get("streakCurrent").asInt()).isEqualTo(1);
     }
 
+
+    @Test
+    void scopeLatestFallsBackToNewestListWhenNoAttemptsExist() throws Exception {
+        String token = signupAndGetToken("dashboard-latest-no-attempts@example.com");
+        createList(token, "A");
+        UUID listB = createList(token, "B");
+
+        JsonNode latest = getDashboard(token, "latest", null);
+        assertThat(latest.get("scope").asText()).isEqualTo("latest");
+        assertThat(latest.get("latestListId").asText()).isEqualTo(listB.toString());
+        assertThat(latest.at("/rightPanel/nextUnsolved")).hasSize(4);
+        assertThat(latest.at("/rightPanel/nextUnsolved/0/orderIndex").asInt()).isEqualTo(1);
+    }
+
     @Test
     void scopeLatestListAndAllBehaveCorrectly() throws Exception {
         String token = signupAndGetToken("dashboard-scope@example.com");
