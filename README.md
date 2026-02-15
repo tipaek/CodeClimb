@@ -29,3 +29,8 @@ VITE_API_BASE_URL=/api npm run dev
 
 Vite proxies `/api/*` to backend (`http://localhost:8080` by default) and rewrites `/api/dashboard` -> `/dashboard`.
 Use `VITE_PROXY_TARGET` to point proxy to another backend URL if needed.
+
+## Vercel deployment
+
+Set `VITE_PROXY_TARGET` to your backend URL in Vercel project environment variables.
+Frontend runtime API calls will use this value when `VITE_API_BASE_URL` is not set.
