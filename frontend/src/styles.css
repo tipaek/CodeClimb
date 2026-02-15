@@ -41,16 +41,18 @@
 }
 
 :root[data-theme='wisteria-bloom'] {
-  --bg: #ece9fb;
-  --surface: #faf8ff;
-  --surface-soft: #f0eafd;
-  --border: #d8cdef;
-  --text: #332547;
-  --muted: #5e5276;
-  --accent: #7a4ec6;
-  --accent-strong: #6338b1;
-  --focus: #a98ee9;
-  --pill-bg: #e9ddff;
+  --bg: #f6f1ff;
+  --surface: #fffafd;
+  --surface-soft: #f6edff;
+  --border: #decff1;
+  --text: #2f2147;
+  --muted: #695683;
+  --accent: #8c55dd;
+  --accent-strong: #7138c2;
+  --focus: #bd9af4;
+  --error: #ae3656;
+  --pill-bg: #f1e4ff;
+  --shadow-card: 0 12px 32px color-mix(in srgb, #512b78 16%, transparent);
 }
 
 :root[data-theme='night-sands'] {
@@ -74,7 +76,10 @@ body {
   font-family: var(--font-body);
   font-size: 16px;
   line-height: 1.5;
-  background: radial-gradient(circle at top right, color-mix(in srgb, var(--pill-bg) 60%, transparent), transparent 45%), linear-gradient(180deg, color-mix(in srgb, var(--bg) 92%, #fff) 0%, var(--bg) 100%);
+  background:
+    radial-gradient(circle at 15% 0%, color-mix(in srgb, var(--accent) 18%, #fff) 0%, transparent 42%),
+    radial-gradient(circle at 85% 10%, color-mix(in srgb, #f8bfd8 24%, transparent) 0%, transparent 36%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 94%, #fff) 0%, var(--bg) 100%);
   background-attachment: fixed;
   color: var(--text);
 }
@@ -147,16 +152,20 @@ p { margin: 0; }
   min-height: 40px;
   padding: 0 var(--space-16);
   cursor: pointer;
-  transition: background-color var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
+  transition: background-color var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .cc-button--primary {
-  background: var(--accent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 88%, #fff), var(--accent-strong));
   color: #fff;
   border-color: transparent;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
-.cc-button--primary:hover { background: var(--accent-strong); }
+.cc-button--primary:hover {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--accent) 36%, transparent);
+}
 .cc-button--primary:active { transform: translateY(1px); }
 
 .cc-button--secondary:hover,
@@ -169,6 +178,8 @@ p { margin: 0; }
   min-height: 42px;
   padding: 0 12px;
   width: 100%;
+  background: color-mix(in srgb, var(--surface) 84%, #fff);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background-color var(--transition-fast);
 }
 
 .cc-input:focus-visible,
@@ -177,6 +188,17 @@ p { margin: 0; }
 a:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+.cc-input:hover,
+.cc-select:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.cc-input:focus-visible,
+.cc-select:focus-visible {
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 28%, transparent);
+  background: var(--surface);
 }
 
 .cc-pill {
@@ -241,7 +263,9 @@ a:focus-visible {
 .progress-card {
   display: grid;
   gap: var(--space-8);
-  background: linear-gradient(160deg, var(--surface) 0%, color-mix(in srgb, var(--pill-bg) 42%, var(--surface)) 100%);
+  background:
+    radial-gradient(circle at 95% 0%, color-mix(in srgb, #ffcde1 28%, transparent) 0%, transparent 38%),
+    linear-gradient(160deg, var(--surface) 0%, color-mix(in srgb, var(--pill-bg) 54%, var(--surface)) 100%);
 }
 
 .progress-card-header {
@@ -268,7 +292,7 @@ a:focus-visible {
 
 .mini-stat-tile {
   border-radius: 12px;
-  padding: 6px 10px;
+  padding: 8px 10px;
   background: color-mix(in srgb, var(--surface-soft) 75%, var(--surface));
   display: flex;
   justify-content: space-between;
@@ -359,7 +383,7 @@ a:focus-visible {
 }
 
 .mini-calendar-wrap {
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   background: color-mix(in srgb, var(--surface) 72%, var(--surface-soft));
@@ -396,7 +420,7 @@ a:focus-visible {
 .mini-calendar-day.is-dim { opacity: 0.45; }
 
 .mini-calendar-day.is-active {
-  background: color-mix(in srgb, var(--accent) 20%, var(--surface));
+  background: linear-gradient(140deg, color-mix(in srgb, var(--accent) 24%, var(--surface)), color-mix(in srgb, #ffc6de 30%, var(--surface)));
   color: var(--text);
   font-weight: 700;
 }
@@ -424,7 +448,7 @@ a:focus-visible {
   border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
   padding: var(--space-16);
-  background: color-mix(in srgb, var(--surface) 78%, var(--surface-soft));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--surface) 88%, #fff), color-mix(in srgb, var(--surface-soft) 88%, var(--surface)));
   display: grid;
   gap: var(--space-8);
   transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
@@ -433,7 +457,7 @@ a:focus-visible {
 .up-next-card:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--text) 10%, transparent);
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .up-next-title-row h3 {
@@ -465,6 +489,11 @@ a:focus-visible {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-16);
   margin-bottom: var(--space-16);
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  background: color-mix(in srgb, var(--surface) 78%, var(--surface-soft));
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 .toolbar-control {
@@ -487,7 +516,7 @@ a:focus-visible {
 .category-card {
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   border-radius: 20px;
-  background: color-mix(in srgb, var(--surface) 85%, var(--surface-soft));
+  background: linear-gradient(165deg, color-mix(in srgb, var(--surface) 90%, #fff), color-mix(in srgb, var(--surface-soft) 84%, var(--surface)));
   padding: var(--space-16);
 }
 
@@ -503,6 +532,12 @@ a:focus-visible {
   font-size: 18px;
   font-weight: 700;
   cursor: pointer;
+  border-radius: 12px;
+  transition: color var(--transition-fast);
+}
+
+.category-header:hover {
+  color: var(--accent-strong);
 }
 
 .problem-list-stack { margin-top: var(--space-16); display: grid; gap: var(--space-16); }
@@ -511,7 +546,13 @@ a:focus-visible {
   border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
   border-radius: 18px;
   padding: 14px;
-  background: color-mix(in srgb, var(--surface) 92%, var(--surface-soft));
+  background: color-mix(in srgb, var(--surface) 94%, var(--surface-soft));
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.problem-row-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .problem-row-card.is-solved {
@@ -524,6 +565,7 @@ a:focus-visible {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
+  cursor: pointer;
 }
 
 .solved-toggle {
@@ -534,6 +576,12 @@ a:focus-visible {
   background: var(--surface-soft);
   color: transparent;
   cursor: pointer;
+  transition: transform var(--transition-fast), background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.solved-toggle:hover {
+  transform: scale(1.05);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
 .solved-toggle.is-on {
@@ -543,6 +591,12 @@ a:focus-visible {
 }
 
 .problem-row-title { min-width: 0; display: grid; gap: 8px; }
+
+.problem-expand-hint {
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .problem-title-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .problem-link {
   font-size: 16px;
@@ -570,6 +624,7 @@ a:focus-visible {
 .difficulty-pill,
 .confidence-pill {
   font-size: 12px;
+  font-weight: 600;
   line-height: 1;
   border-radius: 999px;
   padding: 6px 10px;
@@ -596,6 +651,9 @@ a:focus-visible {
   padding-top: var(--space-16);
   display: grid;
   gap: var(--space-16);
+  background: color-mix(in srgb, var(--surface) 72%, var(--surface-soft));
+  border-radius: 14px;
+  padding: var(--space-16);
 }
 
 .details-header {
@@ -606,7 +664,7 @@ a:focus-visible {
 
 .drawer-fields {
   display: grid;
-  grid-template-columns: minmax(152px, 170px) minmax(132px, 150px) minmax(132px, 150px) minmax(124px, 140px);
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
   gap: var(--space-16);
   align-items: end;
 }
