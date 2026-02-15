@@ -69,17 +69,30 @@
 }
 
 :root[data-theme='night-sands'] {
-  --bg: #191e29;
-  --surface: #262d3d;
-  --surface-soft: #31394b;
-  --border: #444e66;
-  --text: #f5f7ff;
-  --muted: #c3cbe0;
-  --accent: #8aa6ff;
-  --accent-strong: #6d89ee;
-  --focus: #a8baff;
-  --error: #ff8f8f;
-  --pill-bg: #39445c;
+  --bg: #101522;
+  --surface: #1b2334;
+  --surface-soft: #252f45;
+  --border: #35415a;
+  --text: #eef3ff;
+  --muted: #a8b4d1;
+  --accent: #86a5ff;
+  --accent-strong: #6e88ea;
+  --focus: #aac1ff;
+  --success: #6db89b;
+  --warning: #d2aa67;
+  --danger: #d07b9b;
+  --error: #ff9eb2;
+  --pill-bg: #2f3a53;
+  --shadow-card: 0 16px 36px color-mix(in srgb, #030610 60%, transparent);
+  --shadow-soft: 0 10px 24px color-mix(in srgb, #030610 44%, transparent);
+}
+
+:root[data-theme='night-sands'] body {
+  background:
+    radial-gradient(circle at 12% -4%, color-mix(in srgb, #7f96db 28%, transparent) 0%, transparent 36%),
+    radial-gradient(circle at 88% 8%, color-mix(in srgb, #6f86bf 26%, transparent) 0%, transparent 34%),
+    radial-gradient(circle at 55% 108%, color-mix(in srgb, #1d2940 70%, transparent) 0%, transparent 56%),
+    linear-gradient(180deg, #0e1320 0%, var(--bg) 100%);
 }
 
 * { box-sizing: border-box; }
@@ -145,6 +158,13 @@ p { margin: 0; }
   color: transparent;
 }
 
+:root[data-theme='night-sands'] .brand-link {
+  background: linear-gradient(125deg, #d4ddff 0%, #9fb7ff 40%, #8ea1d7 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 .top-nav {
   display: flex;
   align-items: center;
@@ -175,6 +195,11 @@ p { margin: 0; }
   box-shadow: var(--shadow-card), inset 0 1px 0 color-mix(in srgb, #fff 75%, transparent);
 }
 
+:root[data-theme='night-sands'] .cc-card {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--surface) 96%, #141b2a), color-mix(in srgb, var(--surface-soft) 90%, var(--surface)));
+  box-shadow: var(--shadow-card), inset 0 1px 0 color-mix(in srgb, #c8d7ff 12%, transparent);
+}
+
 .cc-button,
 .cc-input,
 .cc-select {
@@ -188,6 +213,12 @@ p { margin: 0; }
 :root[data-theme='wisteria-bloom'] .cc-input,
 :root[data-theme='wisteria-bloom'] .cc-select {
   background: color-mix(in srgb, #fff 76%, var(--surface-soft));
+}
+
+:root[data-theme='night-sands'] .cc-input,
+:root[data-theme='night-sands'] .cc-select {
+  background: color-mix(in srgb, #0f1523 34%, var(--surface));
+  border-color: color-mix(in srgb, var(--border) 85%, #182034);
 }
 
 .cc-button {
@@ -347,6 +378,13 @@ a:focus-visible {
     linear-gradient(160deg, color-mix(in srgb, var(--surface) 90%, #fff) 0%, color-mix(in srgb, var(--surface-soft) 92%, var(--surface)) 100%);
 }
 
+:root[data-theme='night-sands'] .progress-card {
+  background:
+    radial-gradient(circle at 94% -4%, color-mix(in srgb, #879bdb 34%, transparent) 0%, transparent 44%),
+    radial-gradient(circle at 10% 102%, color-mix(in srgb, #2f405f 45%, transparent) 0%, transparent 54%),
+    linear-gradient(160deg, color-mix(in srgb, var(--surface) 94%, #131a2a) 0%, color-mix(in srgb, var(--surface-soft) 92%, var(--surface)) 100%);
+}
+
 .progress-card-header {
   display: flex;
   justify-content: center;
@@ -365,6 +403,10 @@ a:focus-visible {
 
 :root[data-theme='wisteria-bloom'] .progress-level-inline {
   background: linear-gradient(130deg, color-mix(in srgb, var(--accent) 18%, #fff), color-mix(in srgb, #f6d8ff 52%, #fff));
+}
+
+:root[data-theme='night-sands'] .progress-level-inline {
+  color: #ffffff;
 }
 
 .mini-stats {
@@ -626,6 +668,14 @@ a:focus-visible {
     color-mix(in srgb, var(--surface) 80%, var(--surface-soft));
 }
 
+:root[data-theme='night-sands'] .problems-toolbar {
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, #7b92cf 24%, transparent) 0%, transparent 36%),
+    radial-gradient(circle at 0% 100%, color-mix(in srgb, #2f415f 26%, transparent) 0%, transparent 44%),
+    color-mix(in srgb, var(--surface) 78%, var(--surface-soft));
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+}
+
 .toolbar-control {
   display: grid;
   gap: 4px;
@@ -656,6 +706,13 @@ a:focus-visible {
     radial-gradient(circle at 94% 8%, color-mix(in srgb, #ffd7cb 30%, transparent) 0%, transparent 32%),
     linear-gradient(166deg, color-mix(in srgb, var(--surface) 92%, #fff), color-mix(in srgb, var(--surface-soft) 86%, var(--surface)));
   border-color: color-mix(in srgb, var(--accent) 18%, var(--border));
+}
+
+:root[data-theme='night-sands'] .category-card {
+  background:
+    radial-gradient(circle at 94% 8%, color-mix(in srgb, #7d92c9 20%, transparent) 0%, transparent 32%),
+    linear-gradient(166deg, color-mix(in srgb, var(--surface) 94%, #131b2b), color-mix(in srgb, var(--surface-soft) 88%, var(--surface)));
+  border-color: color-mix(in srgb, var(--accent) 16%, var(--border));
 }
 
 .category-header {
@@ -696,6 +753,22 @@ a:focus-visible {
   margin: -8px -10px 0;
 }
 
+:root[data-theme='night-sands'] .category-header {
+  padding: 8px 10px;
+  margin: -8px -10px 0;
+  border: 1px solid transparent;
+}
+
+:root[data-theme='night-sands'] .category-header > span:first-child {
+  color: #ffffff;
+}
+
+:root[data-theme='night-sands'] .category-header:hover {
+  color: #d4e0ff;
+  background: color-mix(in srgb, var(--pill-bg) 62%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+}
+
 .problem-list-stack { margin-top: var(--space-16); display: grid; gap: var(--space-16); }
 
 .problem-row-card {
@@ -717,6 +790,11 @@ a:focus-visible {
 
 :root[data-theme='wisteria-bloom'] .problem-row-card {
   box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent);
+}
+
+:root[data-theme='night-sands'] .problem-row-card {
+  background: linear-gradient(165deg, color-mix(in srgb, var(--surface) 95%, #11182a), color-mix(in srgb, var(--surface-soft) 78%, var(--surface)));
+  border-color: color-mix(in srgb, var(--border) 90%, #253148);
 }
 
 .problem-row-card.is-solved {
@@ -801,6 +879,11 @@ a:focus-visible {
   background: color-mix(in srgb, var(--surface-soft) 80%, var(--surface));
 }
 
+:root[data-theme='night-sands'] .problem-category,
+:root[data-theme='night-sands'] .meta-badge {
+  color: #ffffff;
+}
+
 .difficulty-pill--easy { background: color-mix(in srgb, var(--success) 18%, var(--surface)); color: color-mix(in srgb, var(--success) 76%, #204a33); }
 .difficulty-pill--medium { background: color-mix(in srgb, var(--warning) 18%, var(--surface)); color: color-mix(in srgb, var(--warning) 76%, #5c3a0f); }
 .difficulty-pill--hard { background: color-mix(in srgb, var(--danger) 16%, var(--surface)); color: color-mix(in srgb, var(--danger) 76%, #5b1d28); }
@@ -822,6 +905,10 @@ a:focus-visible {
 
 :root[data-theme='wisteria-bloom'] .details-drawer {
   background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 78%, #fff), color-mix(in srgb, var(--surface-soft) 74%, var(--surface)));
+}
+
+:root[data-theme='night-sands'] .details-drawer {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 84%, #151d2e), color-mix(in srgb, var(--surface-soft) 80%, var(--surface)));
 }
 
 .details-header {
