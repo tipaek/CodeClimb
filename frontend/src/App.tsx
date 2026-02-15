@@ -912,7 +912,7 @@ function ProblemsPage() {
         <div className="problems-toolbar">
           <label className="toolbar-control">
             <span className="toolbar-label">List</span>
-            <Select value={selectedListId} onChange={(event) => setSelectedListId(event.target.value)} onClick={!token ? openAuthCta : undefined} disabled={token && lists.length === 0}>
+            <Select value={selectedListId} onChange={(event) => setSelectedListId(event.target.value)} onClick={!token ? openAuthCta : undefined} disabled={Boolean(token) && lists.length === 0}>
               <option value="">Select a list</option>
               {lists.map((list) => (
                 <option key={list.id} value={list.id}>

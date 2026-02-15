@@ -8,5 +8,5 @@ export type ListItem = components['schemas']['List'];
 export type UpsertAttemptRequest = components['schemas']['UpsertAttemptRequest'];
 export type Attempt = components['schemas']['Attempt'];
 export type ProblemWithLatestAttempt = components['schemas']['ProblemWithLatestAttempt'];
-export type CategoryStat = components['schemas']['CategoryStats'];
+export type CategoryStat = components['schemas']['DashboardCategorySolvedStats'];
 export type Dashboard = components['schemas']['Dashboard'];
