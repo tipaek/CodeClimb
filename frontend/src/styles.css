@@ -565,6 +565,7 @@ a:focus-visible {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
+  cursor: pointer;
 }
 
 .solved-toggle {
@@ -590,6 +591,12 @@ a:focus-visible {
 }
 
 .problem-row-title { min-width: 0; display: grid; gap: 8px; }
+
+.problem-expand-hint {
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .problem-title-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .problem-link {
   font-size: 16px;
@@ -657,7 +664,7 @@ a:focus-visible {
 
 .drawer-fields {
   display: grid;
-  grid-template-columns: minmax(152px, 170px) minmax(132px, 150px) minmax(132px, 150px) minmax(124px, 140px);
+  grid-template-columns: repeat(3, minmax(160px, 1fr));
   gap: var(--space-16);
   align-items: end;
 }

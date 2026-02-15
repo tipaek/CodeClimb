@@ -685,7 +685,6 @@ function ProblemsPage() {
     timeComplexity: typeof attempt?.timeComplexity === 'string' ? attempt.timeComplexity : null,
     spaceComplexity: typeof attempt?.spaceComplexity === 'string' ? attempt.spaceComplexity : null,
     notes: typeof attempt?.notes === 'string' ? attempt.notes : null,
-    problemUrl: typeof attempt?.problemUrl === 'string' ? attempt.problemUrl : null,
   });
 
   useEffect(() => {
@@ -974,23 +973,43 @@ function ProblemsPage() {
                       const lastAttemptLabel = latestMeta.updatedAt ? new Date(latestMeta.updatedAt).toLocaleDateString() : null;
                       const timeComplexityOptions = getComplexityOptions(state.draft.timeComplexity);
                       const spaceComplexityOptions = getComplexityOptions(state.draft.spaceComplexity);
+                      const toggleProblemDrawer = () => {
+                        if (!drawerOpen) {
+                          void loadHistory(problem);
+                        }
+                        setExpandedProblems((prev) => ({ ...prev, [problem.neet250Id]: !drawerOpen }));
+                      };
                       return (
                         <article className={`problem-row-card ${state.draft.solved ? 'is-solved' : ''}`} key={problem.neet250Id}>
-                          <div className="problem-row-main">
+                          <div className="problem-row-main" onClick={toggleProblemDrawer}>
                             <button
                               type="button"
                               className={`solved-toggle ${state.draft.solved ? 'is-on' : ''}`}
                               aria-pressed={state.draft.solved === true}
-                              onClick={() => updateDraft(problem, { solved: state.draft.solved === true ? false : true, dateSolved: state.draft.solved === true ? null : new Date().toISOString().slice(0, 10) }, true)}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                updateDraft(problem, { solved: state.draft.solved === true ? false : true, dateSolved: state.draft.solved === true ? null : new Date().toISOString().slice(0, 10) }, true);
+                              }}
                             >
                               ✓
                             </button>
                             <div className="problem-row-title">
                               <div className="problem-title-line">
-                                <a className="problem-link" href={`https://leetcode.com/problems/${problem.leetcodeSlug}/`} target="_blank" rel="noreferrer" onClick={!token ? (e) => { e.preventDefault(); openAuthCta(); } : undefined}>
+                                <a
+                                  className="problem-link"
+                                  href={`https://leetcode.com/problems/${problem.leetcodeSlug}/`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!token) {
+                                      e.preventDefault();
+                                      openAuthCta();
+                                    }
+                                  }}
+                                >
                                   {problem.title}
                                 </a>
-                                <a className="problem-open-link" href={`https://leetcode.com/problems/${problem.leetcodeSlug}/`} target="_blank" rel="noreferrer" onClick={!token ? (e) => { e.preventDefault(); openAuthCta(); } : undefined}>Open ↗</a>
                               </div>
                               <div className="problem-meta-row">
                                 <span className="problem-category">{problem.category}</span>
@@ -1003,17 +1022,7 @@ function ProblemsPage() {
                                 {latestMeta.timeMinutes ? <span className="meta-badge">Avg time: {latestMeta.timeMinutes}m</span> : null}
                               </div>
                             </div>
-                            <Button
-                              variant="ghost"
-                              onClick={() => {
-                                if (!drawerOpen) {
-                                  void loadHistory(problem);
-                                }
-                                setExpandedProblems((prev) => ({ ...prev, [problem.neet250Id]: !drawerOpen }));
-                              }}
-                            >
-                              {drawerOpen ? 'Hide details' : 'Details'}
-                            </Button>
+                            <span className="problem-expand-hint muted">{drawerOpen ? 'Hide details' : 'Show details'}</span>
                           </div>
                           {drawerOpen ? (
                             <div className="details-drawer">
@@ -1022,10 +1031,6 @@ function ProblemsPage() {
                                 {state.status === 'saving' ? <span className="muted">Saving...</span> : null}
                               </div>
                               <div className="drawer-fields">
-                                <label className="drawer-field">
-                                  <span className="toolbar-label">Date solved</span>
-                                  <Input type="date" value={state.draft.dateSolved ?? ''} onChange={(event) => updateDraft(problem, { dateSolved: event.target.value || null })} />
-                                </label>
                                 <label className="drawer-field">
                                   <span className="toolbar-label">Confidence</span>
                                   <Select
