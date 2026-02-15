@@ -68,7 +68,7 @@ let generated;
 try {
   generated = execFileSync('ruby', ['-e', rubyScript, inputSpec], { encoding: 'utf8' });
 } catch (error) {
-  if (existsSync(output)) {
+  if (error?.code === 'ENOENT' && existsSync(output)) {
     console.warn(
       `Ruby is unavailable, skipping API generation and using existing ${output}. ` +
         'Run `npm run gen:api` in an environment with Ruby to refresh generated types.'
