@@ -32,21 +32,21 @@
 }
 
 :root[data-theme='fresh-peach'] {
-  --bg: #fdeee6;
-  --surface: #fffaf7;
-  --surface-soft: #ffe9dd;
-  --border: #f3d1c0;
-  --text: #402820;
-  --muted: #79594f;
-  --accent: #d37d63;
-  --accent-strong: #b9654d;
-  --focus: #efaa8a;
-  --success: #4b9b72;
-  --warning: #bd7b30;
-  --danger: #b44c5a;
-  --pill-bg: #ffe6d6;
-  --shadow-card: 0 14px 30px color-mix(in srgb, #ca8a73 22%, transparent);
-  --shadow-soft: 0 7px 18px color-mix(in srgb, #ca8a73 16%, transparent);
+  --bg: #fef1ea;
+  --surface: #fff8f4;
+  --surface-soft: #ffe9df;
+  --border: #f2ccba;
+  --text: #45261e;
+  --muted: #7c5a50;
+  --accent: #db7f63;
+  --accent-strong: #c8674c;
+  --focus: #f2b194;
+  --success: #5a9f78;
+  --warning: #be7d3c;
+  --danger: #be5766;
+  --pill-bg: #ffe3d4;
+  --shadow-card: 0 16px 32px color-mix(in srgb, #cf9079 24%, transparent);
+  --shadow-soft: 0 9px 20px color-mix(in srgb, #cf9079 18%, transparent);
 }
 
 :root[data-theme='wisteria-bloom'] {
@@ -129,6 +129,13 @@ p { margin: 0; }
   font-weight: 800;
   color: var(--text);
   text-decoration: none;
+}
+
+:root[data-theme='fresh-peach'] .brand-link {
+  background: linear-gradient(130deg, #cf6f54 0%, #e68b6e 52%, #f1a593 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 :root[data-theme='wisteria-bloom'] .brand-link {
@@ -326,6 +333,13 @@ a:focus-visible {
     linear-gradient(160deg, var(--surface) 0%, color-mix(in srgb, var(--pill-bg) 58%, var(--surface)) 100%);
 }
 
+:root[data-theme='fresh-peach'] .progress-card {
+  background:
+    radial-gradient(circle at 90% -10%, color-mix(in srgb, #ffd9c8 72%, transparent) 0%, transparent 44%),
+    radial-gradient(circle at 10% 100%, color-mix(in srgb, #ffc9d7 46%, transparent) 0%, transparent 48%),
+    linear-gradient(160deg, color-mix(in srgb, var(--surface) 90%, #fff) 0%, color-mix(in srgb, var(--surface-soft) 88%, var(--surface)) 100%);
+}
+
 :root[data-theme='wisteria-bloom'] .progress-card {
   background:
     radial-gradient(circle at 92% -8%, color-mix(in srgb, #ffcae7 60%, transparent) 0%, transparent 45%),
@@ -368,6 +382,11 @@ a:focus-visible {
   justify-content: space-between;
   align-items: baseline;
   gap: 6px;
+}
+
+:root[data-theme='fresh-peach'] .mini-stat-tile {
+  background: linear-gradient(155deg, color-mix(in srgb, #fff 68%, var(--surface)), color-mix(in srgb, #ffd9cc 36%, var(--surface-soft)));
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
 }
 
 .progress-chart-block {
@@ -460,6 +479,13 @@ a:focus-visible {
   box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 70%, transparent);
 }
 
+:root[data-theme='fresh-peach'] .mini-calendar-wrap {
+  background:
+    radial-gradient(circle at 82% 6%, color-mix(in srgb, #ffd8c9 45%, transparent) 0%, transparent 36%),
+    color-mix(in srgb, var(--surface) 70%, var(--surface-soft));
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+
 .mini-calendar-head {
   display: flex;
   justify-content: space-between;
@@ -496,6 +522,10 @@ a:focus-visible {
   font-weight: 700;
 }
 
+:root[data-theme='fresh-peach'] .mini-calendar-day.is-active {
+  box-shadow: 0 6px 12px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
 :root[data-theme='wisteria-bloom'] .mini-calendar-day.is-active {
   box-shadow: 0 5px 10px color-mix(in srgb, var(--accent) 23%, transparent);
 }
@@ -527,6 +557,13 @@ a:focus-visible {
   display: grid;
   gap: var(--space-8);
   transition: transform var(--transition-fast), border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+:root[data-theme='fresh-peach'] .up-next-card {
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, #ffd9cf 34%, transparent) 0%, transparent 34%),
+    linear-gradient(162deg, color-mix(in srgb, var(--surface) 90%, #fff), color-mix(in srgb, var(--surface-soft) 84%, var(--surface)));
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
 }
 
 .up-next-card:hover {
@@ -575,6 +612,14 @@ a:focus-visible {
   box-shadow: var(--shadow-soft);
 }
 
+:root[data-theme='fresh-peach'] .problems-toolbar {
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, #ffd9cc 38%, transparent) 0%, transparent 38%),
+    radial-gradient(circle at 0% 100%, color-mix(in srgb, #ffdce6 30%, transparent) 0%, transparent 44%),
+    color-mix(in srgb, var(--surface) 76%, var(--surface-soft));
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+
 :root[data-theme='wisteria-bloom'] .problems-toolbar {
   background:
     radial-gradient(circle at 100% 0%, color-mix(in srgb, #ffcae7 28%, transparent) 0%, transparent 36%),
@@ -606,6 +651,13 @@ a:focus-visible {
   box-shadow: var(--shadow-soft);
 }
 
+:root[data-theme='fresh-peach'] .category-card {
+  background:
+    radial-gradient(circle at 94% 8%, color-mix(in srgb, #ffd7cb 30%, transparent) 0%, transparent 32%),
+    linear-gradient(166deg, color-mix(in srgb, var(--surface) 92%, #fff), color-mix(in srgb, var(--surface-soft) 86%, var(--surface)));
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--border));
+}
+
 .category-header {
   width: 100%;
   display: flex;
@@ -627,6 +679,18 @@ a:focus-visible {
   background: color-mix(in srgb, var(--pill-bg) 50%, transparent);
 }
 
+:root[data-theme='fresh-peach'] .category-header {
+  padding: 8px 10px;
+  margin: -8px -10px 0;
+  border: 1px solid transparent;
+}
+
+:root[data-theme='fresh-peach'] .category-header:hover {
+  color: color-mix(in srgb, var(--accent-strong) 90%, #5a2f25);
+  background: color-mix(in srgb, #ffe4d8 72%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+
 :root[data-theme='wisteria-bloom'] .category-header {
   padding: 8px 10px;
   margin: -8px -10px 0;
@@ -645,6 +709,10 @@ a:focus-visible {
 .problem-row-card:hover {
   border-color: color-mix(in srgb, var(--accent) 26%, var(--border));
   box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+:root[data-theme='fresh-peach'] .problem-row-card {
+  background: linear-gradient(165deg, color-mix(in srgb, #fff 76%, var(--surface)), color-mix(in srgb, #ffe3d8 28%, var(--surface-soft)));
 }
 
 :root[data-theme='wisteria-bloom'] .problem-row-card {
