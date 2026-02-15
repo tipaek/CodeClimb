@@ -145,8 +145,8 @@ function wakeBackend(): Promise<void> {
 const DEMO_ACTIVITY_DAYS = ['2026-02-02', '2026-02-04', '2026-02-05', '2026-02-09', '2026-02-12', '2026-02-13'];
 const DEMO_LEVEL: DashboardLevel = { number: 7, label: 'Trees' };
 const DEMO_CARDS: DashboardCard[] = [
-  { neet250Id: 104, title: 'Binary Tree Level Order Traversal', category: 'Trees', orderIndex: 4, leetcodeUrl: 'https://leetcode.com/problems/binary-tree-level-order-traversal/', latestAttempt: { attemptId: null, attempts: 2, confidence: 'MEDIUM', notes: 'Review BFS queue patterns.' } },
-  { neet250Id: 121, title: 'Kth Smallest Element in a BST', category: 'Trees', orderIndex: 9, leetcodeUrl: 'https://leetcode.com/problems/kth-smallest-element-in-a-bst/', latestAttempt: { attemptId: null, attempts: 1, confidence: 'LOW', notes: '' } },
+  { neet250Id: 104, title: 'Binary Tree Level Order Traversal', category: 'Trees', orderIndex: 4, leetcodeUrl: 'https://leetcode.com/problems/binary-tree-level-order-traversal/', latestAttempt: { attemptId: null, solved: null, attempts: 2, confidence: 'MEDIUM', notes: 'Review BFS queue patterns.' } },
+  { neet250Id: 121, title: 'Kth Smallest Element in a BST', category: 'Trees', orderIndex: 9, leetcodeUrl: 'https://leetcode.com/problems/kth-smallest-element-in-a-bst/', latestAttempt: { attemptId: null, solved: null, attempts: 1, confidence: 'LOW', notes: '' } },
   { neet250Id: 132, title: 'Validate Binary Search Tree', category: 'Trees', orderIndex: 6, leetcodeUrl: 'https://leetcode.com/problems/validate-binary-search-tree/', latestAttempt: null },
   { neet250Id: 158, title: 'Longest Repeating Character Replacement', category: 'Sliding Window', orderIndex: 5, leetcodeUrl: 'https://leetcode.com/problems/longest-repeating-character-replacement/', latestAttempt: null },
   { neet250Id: 175, title: 'Implement Trie (Prefix Tree)', category: 'Tries', orderIndex: 1, leetcodeUrl: 'https://leetcode.com/problems/implement-trie-prefix-tree/', latestAttempt: null },
