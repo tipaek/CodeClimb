@@ -236,6 +236,13 @@ function toDraft(card: DashboardCard): UpsertAttemptRequest {
   };
 }
 
+function toLocalDateIso(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function getMiniCalendarDays(now: Date): Date[] {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const gridStart = new Date(monthStart);
@@ -679,7 +686,7 @@ function DashboardPage() {
                 <span key={label} className="mini-calendar-dow">{label}</span>
               ))}
               {calendarDays.map((day) => {
-                const iso = day.toISOString().slice(0, 10);
+                const iso = toLocalDateIso(day);
                 const isCurrentMonth = day.getMonth() === new Date().getMonth();
                 const isActive = highlightedDays.has(iso);
                 return (
@@ -776,7 +783,7 @@ function DashboardPage() {
                       type="button"
                       className={`solved-toggle dashboard-solved-toggle ${state.draft.solved ? 'is-on' : ''}`}
                       aria-pressed={state.draft.solved === true}
-                      onClick={() => updateField(card, { solved: state.draft.solved === true ? false : true, dateSolved: state.draft.solved === true ? null : new Date().toISOString().slice(0, 10) }, true)}
+                      onClick={() => updateField(card, { solved: state.draft.solved === true ? false : true, dateSolved: state.draft.solved === true ? null : toLocalDateIso(new Date()) }, true)}
                     >
                       ✓
                     </button>
@@ -1181,7 +1188,7 @@ function ProblemsPage() {
                               aria-pressed={state.draft.solved === true}
                               onClick={(event) => {
                                 event.stopPropagation();
-                                updateDraft(problem, { solved: state.draft.solved === true ? false : true, dateSolved: state.draft.solved === true ? null : new Date().toISOString().slice(0, 10) }, true);
+                                updateDraft(problem, { solved: state.draft.solved === true ? false : true, dateSolved: state.draft.solved === true ? null : toLocalDateIso(new Date()) }, true);
                               }}
                             >
                               ✓
