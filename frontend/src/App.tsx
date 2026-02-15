@@ -3,7 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-r
 import { api, ApiError } from './api';
 import { useAuth } from './auth';
 import { EMPTY_ATTEMPT, getComplexityOptions, isEmptyAttemptPayload } from './attempts';
-import { Button, Card, Input, Select } from './components/primitives';
+import { Button, Card, Input, Pill, Select } from './components/primitives';
 import { useAuthCtaModal } from './hooks/useAuthCtaModal';
 import { THEME_OPTIONS, useTheme } from './theme';
 import type { Dashboard, ListItem, ProblemWithLatestAttempt, UpsertAttemptRequest } from './types';
