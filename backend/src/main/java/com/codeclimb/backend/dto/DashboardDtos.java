@@ -14,5 +14,6 @@ public class DashboardDtos {
                                     int streakCurrent, double streakAverage, String farthestCategory,
                                     Integer farthestOrderIndex, ProgressItem farthestProblem,
                                     SolvedCounts solvedCounts,
+                                    List<String> activityDays,
                                     RightPanel rightPanel) {}
 }

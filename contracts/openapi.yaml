@@ -381,7 +381,7 @@ components:
     Dashboard:
       type: object
       description: Nullable progress fields are null for new users with no list/attempt activity yet.
-      required: [scope, latestListId, listId, lastActivityAt, streakCurrent, streakAverage, farthestCategory, farthestOrderIndex, farthestProblem, solvedCounts, rightPanel]
+      required: [scope, latestListId, listId, lastActivityAt, streakCurrent, streakAverage, farthestCategory, farthestOrderIndex, farthestProblem, solvedCounts, activityDays, rightPanel]
       properties:
         scope:
           $ref: '#/components/schemas/DashboardScope'
@@ -398,6 +398,9 @@ components:
           nullable: true
         solvedCounts:
           $ref: '#/components/schemas/DashboardSolvedCounts'
+        activityDays:
+          type: array
+          items: { type: string, format: date }
         rightPanel:
           $ref: '#/components/schemas/DashboardRightPanel'
     ProgressProblem:
