@@ -32,40 +32,40 @@
 }
 
 :root[data-theme='fresh-peach'] {
-  --bg: #fef1ea;
-  --surface: #fff8f4;
-  --surface-soft: #ffe9df;
-  --border: #f2ccba;
-  --text: #45261e;
-  --muted: #7c5a50;
-  --accent: #db7f63;
-  --accent-strong: #c8674c;
-  --focus: #f2b194;
-  --success: #5a9f78;
-  --warning: #be7d3c;
-  --danger: #be5766;
-  --pill-bg: #ffe3d4;
-  --shadow-card: 0 16px 32px color-mix(in srgb, #cf9079 24%, transparent);
-  --shadow-soft: 0 9px 20px color-mix(in srgb, #cf9079 18%, transparent);
+  --bg: #fff1e7;
+  --surface: #fffaf6;
+  --surface-soft: #ffe8dd;
+  --border: #efc7b4;
+  --text: #4c2a1f;
+  --muted: #815f53;
+  --accent: #dd7759;
+  --accent-strong: #c65f42;
+  --focus: #efac8f;
+  --success: #5e9f75;
+  --warning: #b8783a;
+  --danger: #be5a6b;
+  --pill-bg: #ffe4d7;
+  --shadow-card: 0 16px 32px color-mix(in srgb, #c97f63 24%, transparent);
+  --shadow-soft: 0 9px 20px color-mix(in srgb, #c97f63 18%, transparent);
 }
 
 :root[data-theme='wisteria-bloom'] {
-  --bg: #f4f0ff;
-  --surface: #fffbff;
-  --surface-soft: #f5ecff;
-  --border: #dbcdf6;
-  --text: #2f2251;
-  --muted: #6e5b90;
-  --accent: #9a66e3;
-  --accent-strong: #7e4ccc;
-  --focus: #c5a4fb;
-  --success: #58a77b;
-  --warning: #ba8652;
-  --danger: #be5b8f;
-  --error: #ad3e70;
-  --pill-bg: #efe2ff;
-  --shadow-card: 0 16px 34px color-mix(in srgb, #6f44aa 18%, transparent);
-  --shadow-soft: 0 9px 22px color-mix(in srgb, #6f44aa 14%, transparent);
+  --bg: #eef0ff;
+  --surface: #fbfcff;
+  --surface-soft: #e9ebff;
+  --border: #ccd3f4;
+  --text: #272d57;
+  --muted: #5e6796;
+  --accent: #6d7de8;
+  --accent-strong: #5563c9;
+  --focus: #9eaef8;
+  --success: #4e9b90;
+  --warning: #9f7bc2;
+  --danger: #bf5f98;
+  --error: #a0447d;
+  --pill-bg: #e4e9ff;
+  --shadow-card: 0 16px 34px color-mix(in srgb, #4659b8 18%, transparent);
+  --shadow-soft: 0 9px 22px color-mix(in srgb, #4659b8 14%, transparent);
 }
 
 :root[data-theme='night-sands'] {
@@ -104,11 +104,27 @@ body {
   line-height: 1.5;
   background:
     radial-gradient(circle at 16% 2%, color-mix(in srgb, var(--accent) 18%, #fff) 0%, transparent 40%),
-    radial-gradient(circle at 88% 12%, color-mix(in srgb, #f8bfd8 28%, transparent) 0%, transparent 34%),
-    radial-gradient(circle at 50% 100%, color-mix(in srgb, #ffcaa8 18%, transparent) 0%, transparent 48%),
+    radial-gradient(circle at 88% 12%, color-mix(in srgb, var(--accent) 12%, #ffd9ea) 0%, transparent 34%),
+    radial-gradient(circle at 50% 100%, color-mix(in srgb, var(--accent) 8%, #ffe6cf) 0%, transparent 48%),
     linear-gradient(180deg, color-mix(in srgb, var(--bg) 94%, #fff) 0%, var(--bg) 100%);
   background-attachment: fixed;
   color: var(--text);
+}
+
+:root[data-theme='fresh-peach'] body {
+  background:
+    radial-gradient(circle at 14% 2%, color-mix(in srgb, #ffd6c2 68%, transparent) 0%, transparent 44%),
+    radial-gradient(circle at 88% 8%, color-mix(in srgb, #ffc3d2 38%, transparent) 0%, transparent 36%),
+    radial-gradient(circle at 54% 104%, color-mix(in srgb, #ffcca8 30%, transparent) 0%, transparent 50%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 94%, #fff) 0%, var(--bg) 100%);
+}
+
+:root[data-theme='wisteria-bloom'] body {
+  background:
+    radial-gradient(circle at 16% 0%, color-mix(in srgb, #cdd8ff 62%, transparent) 0%, transparent 42%),
+    radial-gradient(circle at 90% 10%, color-mix(in srgb, #cde2ff 45%, transparent) 0%, transparent 40%),
+    radial-gradient(circle at 54% 104%, color-mix(in srgb, #d5cbff 36%, transparent) 0%, transparent 52%),
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 95%, #fff) 0%, var(--bg) 100%);
 }
 
 a { color: var(--accent); }
@@ -152,7 +168,7 @@ p { margin: 0; }
 }
 
 :root[data-theme='wisteria-bloom'] .brand-link {
-  background: linear-gradient(130deg, #7f4dcb 0%, #b06ee7 48%, #da7fbd 100%);
+  background: linear-gradient(130deg, #5263c8 0%, #7285e9 48%, #92a7f1 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -373,9 +389,9 @@ a:focus-visible {
 
 :root[data-theme='wisteria-bloom'] .progress-card {
   background:
-    radial-gradient(circle at 92% -8%, color-mix(in srgb, #ffcae7 60%, transparent) 0%, transparent 45%),
-    radial-gradient(circle at 8% 98%, color-mix(in srgb, #cab0ff 46%, transparent) 0%, transparent 50%),
-    linear-gradient(160deg, color-mix(in srgb, var(--surface) 90%, #fff) 0%, color-mix(in srgb, var(--surface-soft) 92%, var(--surface)) 100%);
+    radial-gradient(circle at 92% -8%, color-mix(in srgb, #dce3ff 68%, transparent) 0%, transparent 45%),
+    radial-gradient(circle at 8% 98%, color-mix(in srgb, #ccd6ff 48%, transparent) 0%, transparent 50%),
+    linear-gradient(160deg, color-mix(in srgb, var(--surface) 92%, #fff) 0%, color-mix(in srgb, var(--surface-soft) 94%, var(--surface)) 100%);
 }
 
 :root[data-theme='night-sands'] .progress-card {
@@ -402,7 +418,7 @@ a:focus-visible {
 }
 
 :root[data-theme='wisteria-bloom'] .progress-level-inline {
-  background: linear-gradient(130deg, color-mix(in srgb, var(--accent) 18%, #fff), color-mix(in srgb, #f6d8ff 52%, #fff));
+  background: linear-gradient(130deg, color-mix(in srgb, var(--accent) 16%, #fff), color-mix(in srgb, #dfe7ff 52%, #fff));
 }
 
 :root[data-theme='night-sands'] .progress-level-inline {
@@ -429,6 +445,11 @@ a:focus-visible {
 :root[data-theme='fresh-peach'] .mini-stat-tile {
   background: linear-gradient(155deg, color-mix(in srgb, #fff 68%, var(--surface)), color-mix(in srgb, #ffd9cc 36%, var(--surface-soft)));
   border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+}
+
+:root[data-theme='wisteria-bloom'] .mini-stat-tile {
+  background: linear-gradient(155deg, color-mix(in srgb, #fff 70%, var(--surface)), color-mix(in srgb, #dbe2ff 34%, var(--surface-soft)));
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
 }
 
 .progress-chart-block {
@@ -528,6 +549,13 @@ a:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 22%, var(--border));
 }
 
+:root[data-theme='wisteria-bloom'] .mini-calendar-wrap {
+  background:
+    radial-gradient(circle at 82% 6%, color-mix(in srgb, #dce1ff 50%, transparent) 0%, transparent 36%),
+    color-mix(in srgb, var(--surface) 72%, var(--surface-soft));
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+}
+
 .mini-calendar-head {
   display: flex;
   justify-content: space-between;
@@ -569,7 +597,7 @@ a:focus-visible {
 }
 
 :root[data-theme='wisteria-bloom'] .mini-calendar-day.is-active {
-  box-shadow: 0 5px 10px color-mix(in srgb, var(--accent) 23%, transparent);
+  box-shadow: 0 5px 10px color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
 .up-next-header,
@@ -615,7 +643,10 @@ a:focus-visible {
 }
 
 :root[data-theme='wisteria-bloom'] .up-next-card {
-  border-color: color-mix(in srgb, #c4a8ef 58%, var(--border));
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, #dbe2ff 34%, transparent) 0%, transparent 34%),
+    linear-gradient(162deg, color-mix(in srgb, var(--surface) 92%, #fff), color-mix(in srgb, var(--surface-soft) 86%, var(--surface)));
+  border-color: color-mix(in srgb, #becaf8 58%, var(--border));
 }
 
 .up-next-title-row h3 {
@@ -664,8 +695,10 @@ a:focus-visible {
 
 :root[data-theme='wisteria-bloom'] .problems-toolbar {
   background:
-    radial-gradient(circle at 100% 0%, color-mix(in srgb, #ffcae7 28%, transparent) 0%, transparent 36%),
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, #d7deff 34%, transparent) 0%, transparent 36%),
+    radial-gradient(circle at 2% 100%, color-mix(in srgb, #e5d8ff 26%, transparent) 0%, transparent 42%),
     color-mix(in srgb, var(--surface) 80%, var(--surface-soft));
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
 }
 
 :root[data-theme='night-sands'] .problems-toolbar {
@@ -751,6 +784,13 @@ a:focus-visible {
 :root[data-theme='wisteria-bloom'] .category-header {
   padding: 8px 10px;
   margin: -8px -10px 0;
+  border: 1px solid transparent;
+}
+
+:root[data-theme='wisteria-bloom'] .category-header:hover {
+  color: color-mix(in srgb, var(--accent-strong) 90%, #2f396f);
+  background: color-mix(in srgb, #e3e9ff 70%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
 }
 
 :root[data-theme='night-sands'] .category-header {
@@ -789,6 +829,7 @@ a:focus-visible {
 }
 
 :root[data-theme='wisteria-bloom'] .problem-row-card {
+  background: linear-gradient(165deg, color-mix(in srgb, #fff 78%, var(--surface)), color-mix(in srgb, #dbe2ff 30%, var(--surface-soft)));
   box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 72%, transparent);
 }
 
@@ -904,7 +945,7 @@ a:focus-visible {
 }
 
 :root[data-theme='wisteria-bloom'] .details-drawer {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 78%, #fff), color-mix(in srgb, var(--surface-soft) 74%, var(--surface)));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 80%, #fff), color-mix(in srgb, #dfe6ff 48%, var(--surface-soft)));
 }
 
 :root[data-theme='night-sands'] .details-drawer {
