@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, useCallback, type FormEvent, type ReactNode } from 'react';
+import { Link, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, ApiError } from './api';
 import { useAuth } from './auth';
-import { EMPTY_ATTEMPT, getComplexityOptions, isEmptyAttemptPayload } from './attempts';
-import { Button, Card, Input, Pill, Select } from './components/primitives';
+import { EMPTY_ATTEMPT, getComplexityOptions, isEmptyAttemptPayload, normalizeComplexity } from './attempts';
+import { Button, Card, Input, Pill, Select, Modal } from './components/primitives';
 import { useAuthCtaModal } from './hooks/useAuthCtaModal';
 import { THEME_OPTIONS, useTheme } from './theme';
-import type { Dashboard, ListItem, ProblemWithLatestAttempt, UpsertAttemptRequest } from './types';
+import type { Attempt, Dashboard, ListItem, ProblemWithLatestAttempt, UpsertAttemptRequest } from './types';
 import './styles.css';
 
 // Legacy dashboard labels kept for compatibility checks: Farthest category / Latest solved.
@@ -243,8 +243,8 @@ function toLocalDateIso(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function getMiniCalendarDays(now: Date): Date[] {
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+function getMiniCalendarDays(year: number, month: number): Date[] {
+  const monthStart = new Date(year, month, 1);
   const gridStart = new Date(monthStart);
   gridStart.setDate(monthStart.getDate() - monthStart.getDay());
   return Array.from({ length: 35 }, (_, index) => new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + index));
@@ -362,6 +362,7 @@ function ProgressDonut({
 
 function DashboardPage() {
   const { token } = useAuth();
+  const navigate = useNavigate();
   const { openAuthCta, authCtaModal } = useAuthCtaModal();
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [lists, setLists] = useState<ListItem[]>([]);
@@ -372,6 +373,11 @@ function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [progressProblems, setProgressProblems] = useState<ProblemWithLatestAttempt[]>([]);
   const [upNextState, setUpNextState] = useState<Record<number, UpNextState>>({});
+  const [dashboardProblemCount, setDashboardProblemCount] = useState(5);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date().getMonth());
+  const [calendarYear, setCalendarYear] = useState(() => new Date().getFullYear());
+  const [attemptDetailCard, setAttemptDetailCard] = useState<DashboardCard | null>(null);
+  const [attemptDetailDraft, setAttemptDetailDraft] = useState<UpsertAttemptRequest>({ ...EMPTY_ATTEMPT });
   const timeoutRefs = useRef<Record<number, ReturnType<typeof setTimeout> | undefined>>({});
   const requestVersionRef = useRef<Record<number, number>>({});
   const upNextStateRef = useRef<Record<number, UpNextState>>({});
@@ -458,12 +464,13 @@ function DashboardPage() {
 
   const upNextCards = useMemo(() => {
     if (!token) {
-      return DEMO_CARDS;
+      return DEMO_CARDS.slice(0, dashboardProblemCount);
     }
     const raw = (dashboard as unknown as { rightPanel?: { nextUnsolved?: unknown } })?.rightPanel?.nextUnsolved;
     const normalized = normalizeCards(raw);
-    return normalized.length > 0 ? normalized : FALLBACK_CARDS;
-  }, [dashboard, token]);
+    const cards = normalized.length > 0 ? normalized : FALLBACK_CARDS;
+    return cards.slice(0, dashboardProblemCount);
+  }, [dashboard, token, dashboardProblemCount]);
 
   const progressTotals = useMemo(() => {
     const source = token ? progressProblems : DEMO_PROBLEMS;
@@ -586,14 +593,14 @@ function DashboardPage() {
         if (requestVersionRef.current[card.neet250Id] !== version) {
           return;
         }
-        const errorMessage = e instanceof Error ? e.message : 'Couldn’t save. Retry';
+        const errorMessage = e instanceof Error ? e.message : "Couldn't save. Retry";
         setUpNextState((current) => ({
           ...current,
           [card.neet250Id]: {
             ...(current[card.neet250Id] ?? { draft, attemptId: null }),
             draft,
             status: 'error',
-            error: errorMessage || 'Couldn’t save. Retry',
+            error: errorMessage || "Couldn't save. Retry",
           },
         }));
       }
@@ -653,9 +660,45 @@ function DashboardPage() {
     }
   };
 
-  const currentMonthLabel = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date());
-  const calendarDays = getMiniCalendarDays(new Date());
+  const currentMonthLabel = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' }).format(new Date(calendarYear, calendarMonth, 1));
+  const calendarDays = getMiniCalendarDays(calendarYear, calendarMonth);
   const highlightedDays = new Set(activityDays);
+
+  const goToPrevMonth = () => {
+    if (calendarMonth === 0) {
+      setCalendarMonth(11);
+      setCalendarYear((y) => y - 1);
+    } else {
+      setCalendarMonth((m) => m - 1);
+    }
+  };
+
+  const goToNextMonth = () => {
+    if (calendarMonth === 11) {
+      setCalendarMonth(0);
+      setCalendarYear((y) => y + 1);
+    } else {
+      setCalendarMonth((m) => m + 1);
+    }
+  };
+
+  const openAttemptDetail = (card: DashboardCard) => {
+    const state = upNextState[card.neet250Id];
+    setAttemptDetailCard(card);
+    setAttemptDetailDraft({
+      ...EMPTY_ATTEMPT,
+      solved: state?.draft.solved ?? card.latestAttempt?.solved ?? null,
+      attempts: (state?.draft.attempts ?? card.latestAttempt?.attempts ?? 0) + 1,
+      confidence: state?.draft.confidence ?? card.latestAttempt?.confidence ?? null,
+      notes: state?.draft.notes ?? card.latestAttempt?.notes ?? null,
+    });
+  };
+
+  const submitAttemptDetail = () => {
+    if (!attemptDetailCard) return;
+    updateField(attemptDetailCard, attemptDetailDraft, true);
+    setAttemptDetailCard(null);
+  };
 
   return (
     <section className="stack-24">
@@ -674,20 +717,29 @@ function DashboardPage() {
         <Card className="progress-card">
           <div className="progress-card-header">
             <h2>Progress</h2>
-            {level ? <span className="progress-level-inline">Level {level.number}: {level.label}</span> : <span className="muted">Level —</span>}
+            {level ? (
+              <Link
+                to={`/problems?category=${encodeURIComponent(level.label)}`}
+                className="progress-level-inline"
+                style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
+              >
+                Level {level.number}: {level.label}
+              </Link>
+            ) : <span className="muted">Level —</span>}
           </div>
           <div className="mini-calendar-wrap">
             <div className="mini-calendar-head">
+              <button type="button" className="cal-nav-btn" onClick={goToPrevMonth} aria-label="Previous month">&lt;</button>
               <strong>{currentMonthLabel}</strong>
-              {activityDays.length === 0 ? <span className="muted">No activity yet</span> : null}
+              <button type="button" className="cal-nav-btn" onClick={goToNextMonth} aria-label="Next month">&gt;</button>
             </div>
             <div className="mini-calendar-grid" role="presentation">
-              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((label) => (
-                <span key={label} className="mini-calendar-dow">{label}</span>
+              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((label, i) => (
+                <span key={`${label}-${i}`} className="mini-calendar-dow">{label}</span>
               ))}
               {calendarDays.map((day) => {
                 const iso = toLocalDateIso(day);
-                const isCurrentMonth = day.getMonth() === new Date().getMonth();
+                const isCurrentMonth = day.getMonth() === calendarMonth;
                 const isActive = highlightedDays.has(iso);
                 return (
                   <span
@@ -767,6 +819,17 @@ function DashboardPage() {
         <Card>
           <div className="up-next-header">
             <h2>Up Next</h2>
+            <Select
+              className="dashboard-scope-select"
+              value={String(dashboardProblemCount)}
+              onChange={(event) => setDashboardProblemCount(Number(event.target.value))}
+              aria-label="Number of problems to show"
+              style={{ width: 'auto', minWidth: 60 }}
+            >
+              {[2, 3, 4, 5, 6].map((n) => (
+                <option key={n} value={String(n)}>{n}</option>
+              ))}
+            </Select>
           </div>
           <div className="up-next-stack">
             {upNextCards.map((card) => {
@@ -776,8 +839,13 @@ function DashboardPage() {
                 status: 'idle' as const,
                 error: null,
               };
+              const handleCardClick = (e: React.MouseEvent) => {
+                if ((e.target as HTMLElement).closest('button, select, input, a')) return;
+                if (!token) { openAuthCta(); return; }
+                navigate(`/problems?category=${encodeURIComponent(card.category)}&problem=${card.neet250Id}`);
+              };
               return (
-                <article key={card.neet250Id} className="up-next-card">
+                <article key={card.neet250Id} className="up-next-card" onClick={handleCardClick} style={{ cursor: 'pointer' }}>
                   <div className="up-next-title-row">
                     <button
                       type="button"
@@ -788,45 +856,26 @@ function DashboardPage() {
                       ✓
                     </button>
                     <div>
-                      <h3>
-                        <Link to="/problems" onClick={!token ? (event) => { event.preventDefault(); openAuthCta(); } : undefined}>{card.title}</Link>
-                      </h3>
+                      <h3>{card.title}</h3>
                       <p className="muted">{card.category}</p>
                     </div>
                     <Pill>{`#${card.orderIndex || '—'}`}</Pill>
                   </div>
-                  <div className="up-next-fields">
-                    <Button className="up-next-attempt-button" variant="ghost" onClick={() => updateField(card, { attempts: (state.draft.attempts ?? 0) + 1 }, true)}>Add attempt</Button>
-                    <Select
-                      className="up-next-confidence-select"
-                      value={state.draft.confidence ?? ''}
-                      onChange={(event) => updateField(card, { confidence: event.target.value || null })}
-                      onClick={!token ? openAuthCta : undefined}
-                    >
-                      <option value="">Confidence</option>
-                      <option value="LOW">Low</option>
-                      <option value="MEDIUM">Medium</option>
-                      <option value="HIGH">High</option>
-                    </Select>
-                    <Input
-                      value={state.draft.notes ?? ''}
-                      placeholder="Notes"
-                      onChange={(event) => updateField(card, { notes: event.target.value || null })}
-                      onFocus={!token ? openAuthCta : undefined}
-                    />
-                  </div>
                   <div className="up-next-actions">
-                    {state.draft.attempts ? <span className="muted">Attempts: {state.draft.attempts}</span> : <span className="muted">No attempts yet</span>}
-                    {state.status === 'saving' ? <span className="muted">Saving...</span> : null}
-                    {state.status === 'error' ? (
-                      <button
-                        type="button"
-                        className="inline-retry"
-                        onClick={() => saveAttempt(card, state.draft, { immediate: true, retry: true })}
-                      >
-                        Couldn’t save. Retry
-                      </button>
-                    ) : null}
+                    <div>
+                      {state.draft.attempts ? <span className="muted">Attempts: {state.draft.attempts}</span> : <span className="muted">No attempts yet</span>}
+                      {state.status === 'saving' ? <span className="muted" style={{ marginLeft: 8 }}>Saving...</span> : null}
+                      {state.status === 'error' ? (
+                        <button
+                          type="button"
+                          className="inline-retry"
+                          onClick={() => saveAttempt(card, state.draft, { immediate: true, retry: true })}
+                        >
+                          Couldn't save. Retry
+                        </button>
+                      ) : null}
+                    </div>
+                    <Button className="up-next-attempt-button" variant="ghost" onClick={(e) => { e.stopPropagation(); if (!token) { openAuthCta(); return; } openAttemptDetail(card); }}>Add attempt</Button>
                   </div>
                 </article>
               );
@@ -836,6 +885,45 @@ function DashboardPage() {
           {token && !targetListId ? <p className="error">Create/select a list to save attempts from Dashboard.</p> : null}
         </Card>
       </div>
+      <Modal open={attemptDetailCard != null} title={`Log Attempt: ${attemptDetailCard?.title ?? ''}`} onClose={() => setAttemptDetailCard(null)}>
+        <div className="stack-16" style={{ marginTop: 16 }}>
+          <label className="drawer-field">
+            <span className="toolbar-label">Time to solve (minutes)</span>
+            <Input type="number" min="0" value={attemptDetailDraft.timeMinutes ?? ''} onChange={(e) => setAttemptDetailDraft((d) => ({ ...d, timeMinutes: e.target.value ? Number(e.target.value) : null }))} />
+          </label>
+          <label className="drawer-field">
+            <span className="toolbar-label">Time complexity</span>
+            <Select className="compact-select" value={attemptDetailDraft.timeComplexity ?? ''} onChange={(e) => setAttemptDetailDraft((d) => ({ ...d, timeComplexity: e.target.value || null }))}>
+              <option value="">Select complexity</option>
+              {getComplexityOptions(attemptDetailDraft.timeComplexity).map((o) => <option key={`t-${o}`} value={o}>{o}</option>)}
+            </Select>
+          </label>
+          <label className="drawer-field">
+            <span className="toolbar-label">Space complexity</span>
+            <Select className="compact-select" value={attemptDetailDraft.spaceComplexity ?? ''} onChange={(e) => setAttemptDetailDraft((d) => ({ ...d, spaceComplexity: e.target.value || null }))}>
+              <option value="">Select complexity</option>
+              {getComplexityOptions(attemptDetailDraft.spaceComplexity).map((o) => <option key={`s-${o}`} value={o}>{o}</option>)}
+            </Select>
+          </label>
+          <label className="drawer-field">
+            <span className="toolbar-label">Confidence</span>
+            <Select className="compact-select" value={attemptDetailDraft.confidence ?? ''} onChange={(e) => setAttemptDetailDraft((d) => ({ ...d, confidence: e.target.value || null }))}>
+              <option value="">Select confidence</option>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+            </Select>
+          </label>
+          <label className="drawer-field">
+            <span className="toolbar-label">Notes</span>
+            <textarea className="cc-input drawer-textarea" value={attemptDetailDraft.notes ?? ''} onChange={(e) => setAttemptDetailDraft((d) => ({ ...d, notes: e.target.value || null }))} />
+          </label>
+          <div className="cc-modal-actions">
+            <Button onClick={submitAttemptDetail}>Save attempt</Button>
+            <Button variant="ghost" onClick={() => setAttemptDetailCard(null)}>Cancel</Button>
+          </div>
+        </div>
+      </Modal>
       {authCtaModal}
     </section>
   );
@@ -844,16 +932,20 @@ function DashboardPage() {
 function ProblemsPage() {
   const { token } = useAuth();
   const { openAuthCta, authCtaModal } = useAuthCtaModal();
+  const [searchParams] = useSearchParams();
   const [lists, setLists] = useState<ListItem[]>([]);
   const [selectedListId, setSelectedListId] = useState('');
   const [problems, setProblems] = useState<ProblemWithLatestAttempt[]>([]);
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState(searchParams.get('category') ?? 'all');
   const [difficultyFilter, setDifficultyFilter] = useState<'all' | DifficultyLabel>('all');
   const [categoryStatusFilter, setCategoryStatusFilter] = useState<'all' | 'unfinished' | 'completed'>('all');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
   const [expandedProblems, setExpandedProblems] = useState<Record<number, boolean>>({});
+  const [showImport, setShowImport] = useState(false);
+  const [importText, setImportText] = useState('');
+  const [importStatus, setImportStatus] = useState<string | null>(null);
   const [editorState, setEditorState] = useState<
     Record<
       number,
@@ -940,6 +1032,145 @@ function ProblemsPage() {
       return next;
     });
   }, [sourceProblems]);
+
+  // Auto-expand and scroll to a specific problem when navigating from dashboard
+  useEffect(() => {
+    const problemParam = searchParams.get('problem');
+    const categoryParam = searchParams.get('category');
+    if (categoryParam && sourceProblems.length > 0) {
+      setExpandedCategories((prev) => ({ ...prev, [categoryParam]: true }));
+    }
+    if (problemParam && sourceProblems.length > 0) {
+      const neetId = Number(problemParam);
+      setExpandedProblems((prev) => ({ ...prev, [neetId]: true }));
+      // Defer scroll to allow render
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`problem-${neetId}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  }, [sourceProblems.length, searchParams]);
+
+  const handleImport = async () => {
+    if (!token || !selectedListId || !importText.trim()) return;
+    setImportStatus('Importing...');
+    try {
+      const lines = importText.trim().split('\n');
+      let imported = 0;
+      let skipped = 0;
+      for (const line of lines) {
+        const parts = line.split('\t');
+        if (parts.length < 3) continue;
+
+        // Try to parse: Date | Difficulty | Problem | Links | Solved? | Confidence | Attempts | Time/Space | Notes
+        // The spreadsheet has varying column positions, need to detect problem name
+        const trimmed = parts.map((p) => p.trim());
+
+        // Find the problem title - it's typically the third column or the one after difficulty
+        let dateStr: string | null = null;
+        let difficulty: string | null = null;
+        let problemTitle: string | null = null;
+        let solved: boolean | null = null;
+        let confidence: string | null = null;
+        let attemptsCount: number | null = null;
+        let timeSpace: string | null = null;
+        let notes: string | null = null;
+
+        // Detect category header rows (they have TRUE/FALSE in first position or are section headers)
+        const isCategory = /^(Arrays|Two Pointer|Sliding|Stack|Binary Search|Linked|Trees|Tries|Heap|Backtrack|Graphs|Advanced|Dynamic|Greedy|Interval|Math|Bit)/i.test(trimmed[0]);
+        if (isCategory && trimmed.length <= 2) continue;
+
+        // Parse date-prefixed rows: Date | Difficulty | Problem | Link | Solved | Confidence | Attempts | Time/Space | Notes
+        const dateMatch = trimmed[0].match(/^\d{1,2}\/\d{1,2}\/\d{4}$/);
+        let colOffset = 0;
+        if (dateMatch) {
+          dateStr = trimmed[0];
+          colOffset = 1;
+        }
+
+        // Check if first meaningful col is difficulty
+        const diffCol = trimmed[colOffset];
+        if (['Easy', 'Medium', 'Hard'].includes(diffCol)) {
+          difficulty = diffCol;
+          problemTitle = trimmed[colOffset + 1] || null;
+          // Skip links column (contains solve link emoji)
+          const solvedIdx = colOffset + 3;
+          solved = trimmed[solvedIdx] === 'TRUE';
+          confidence = trimmed[solvedIdx + 1] || null;
+          const attStr = trimmed[solvedIdx + 2];
+          attemptsCount = attStr ? parseInt(attStr, 10) || null : null;
+          timeSpace = trimmed[solvedIdx + 3] || null;
+          notes = trimmed[solvedIdx + 4] || null;
+        } else {
+          // Might be just problem title without difficulty prefix
+          problemTitle = diffCol;
+          const solvedIdx = colOffset + 2;
+          solved = trimmed[solvedIdx] === 'TRUE';
+          confidence = trimmed[solvedIdx + 1] || null;
+          const attStr = trimmed[solvedIdx + 2];
+          attemptsCount = attStr ? parseInt(attStr, 10) || null : null;
+          timeSpace = trimmed[solvedIdx + 3] || null;
+          notes = trimmed[solvedIdx + 4] || null;
+        }
+
+        if (!problemTitle) continue;
+
+        // Try to match problem title to a problem in the list
+        const normalizedTitle = problemTitle.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const matchedProblem = sourceProblems.find((p) => p.title.toLowerCase().replace(/[^a-z0-9]/g, '') === normalizedTitle);
+        if (!matchedProblem) { skipped++; continue; }
+
+        // Parse time/space complexity
+        let timeComplexity: string | null = null;
+        let spaceComplexity: string | null = null;
+        if (timeSpace) {
+          const tsParts = timeSpace.split(',').map((s) => s.trim());
+          if (tsParts[0]) timeComplexity = normalizeComplexity(tsParts[0]);
+          if (tsParts[1]) spaceComplexity = normalizeComplexity(tsParts[1]);
+        }
+
+        // Parse confidence
+        let confValue: string | null = null;
+        if (confidence) {
+          const confLower = confidence.toLowerCase();
+          if (confLower === 'high') confValue = 'HIGH';
+          else if (confLower === 'medium') confValue = 'MEDIUM';
+          else if (confLower === 'low') confValue = 'LOW';
+        }
+
+        // Parse date
+        let dateSolved: string | null = null;
+        if (dateStr) {
+          const [m, d, y] = dateStr.split('/');
+          dateSolved = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+
+        const payload: UpsertAttemptRequest = {
+          solved: solved ?? null,
+          dateSolved,
+          timeMinutes: null,
+          attempts: attemptsCount,
+          confidence: confValue,
+          timeComplexity,
+          spaceComplexity,
+          notes: notes || null,
+          problemUrl: null,
+        };
+
+        try {
+          await api.createAttempt(token, selectedListId, matchedProblem.neet250Id, payload);
+          imported++;
+        } catch {
+          skipped++;
+        }
+      }
+      setImportStatus(`Done! Imported ${imported} problems, skipped ${skipped}.`);
+      // Reload problems
+      setProblems(await api.getProblems(token, selectedListId));
+    } catch (e) {
+      setImportStatus(e instanceof Error ? e.message : 'Import failed');
+    }
+  };
 
   const categories = useMemo(() => Array.from(new Set(sourceProblems.map((problem) => problem.category))).sort(), [sourceProblems]);
 
@@ -1060,7 +1291,7 @@ function ProblemsPage() {
             ...(prev[problem.neet250Id] ?? { attemptId: null, draft, history: [] }),
             draft,
             status: 'error',
-            error: e instanceof Error ? e.message : 'Couldn’t save. Retry',
+            error: e instanceof Error ? e.message : "Couldn't save. Retry",
           },
         }));
       }
@@ -1105,8 +1336,9 @@ function ProblemsPage() {
 
   return (
     <section className="stack-24 problems-page">
-      <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Problems</h1>
+        {token && selectedListId ? <Button variant="secondary" onClick={() => setShowImport(true)}>Import from spreadsheet</Button> : null}
       </div>
       <Card>
         <div className="problems-toolbar">
@@ -1180,7 +1412,7 @@ function ProblemsPage() {
                         setExpandedProblems((prev) => ({ ...prev, [problem.neet250Id]: !drawerOpen }));
                       };
                       return (
-                        <article className={`problem-row-card ${state.draft.solved ? 'is-solved' : ''}`} key={problem.neet250Id}>
+                        <article id={`problem-${problem.neet250Id}`} className={`problem-row-card ${state.draft.solved ? 'is-solved' : ''}`} key={problem.neet250Id}>
                           <div className="problem-row-main" onClick={toggleProblemDrawer}>
                             <button
                               type="button"
@@ -1268,22 +1500,19 @@ function ProblemsPage() {
                                 </label>
                                 <textarea className="cc-input drawer-full drawer-textarea" placeholder="Notes" value={state.draft.notes ?? ''} onChange={(event) => updateDraft(problem, { notes: event.target.value || null })} />
                               </div>
-                              <details className="advanced-panel">
-                                <summary>Advanced</summary>
-                                <div className="attempts-stepper">
-                                  <span className="toolbar-label">Attempts</span>
-                                  <div className="attempts-controls">
-                                    <button type="button" className="stepper-btn" onClick={() => updateDraft(problem, { attempts: Math.max(0, (state.draft.attempts ?? 0) - 1) || null }, true)}>−</button>
-                                    <span>{state.draft.attempts ?? 0}</span>
-                                    <button type="button" className="stepper-btn" onClick={() => updateDraft(problem, { attempts: (state.draft.attempts ?? 0) + 1 }, true)}>+</button>
-                                    <Button variant="ghost" onClick={() => updateDraft(problem, { attempts: (state.draft.attempts ?? 0) + 1 }, true)}>Add attempt</Button>
-                                  </div>
+                              <div className="attempts-stepper">
+                                <span className="toolbar-label">Attempts</span>
+                                <div className="attempts-controls">
+                                  <button type="button" className="stepper-btn" onClick={() => updateDraft(problem, { attempts: Math.max(0, (state.draft.attempts ?? 0) - 1) || null }, true)}>−</button>
+                                  <span>{state.draft.attempts ?? 0}</span>
+                                  <button type="button" className="stepper-btn" onClick={() => updateDraft(problem, { attempts: (state.draft.attempts ?? 0) + 1 }, true)}>+</button>
+                                  <Button variant="ghost" onClick={() => updateDraft(problem, { attempts: (state.draft.attempts ?? 0) + 1 }, true)}>Add attempt</Button>
                                 </div>
-                              </details>
+                              </div>
                               <div className="drawer-status-row">
                                 {state.status === 'error' ? (
                                   <button className="inline-retry" onClick={() => scheduleSave(problem, state.draft, { immediate: true, retry: true })}>
-                                    Couldn’t save. Retry
+                                    Couldn't save. Retry
                                   </button>
                                 ) : null}
                               </div>
@@ -1335,6 +1564,23 @@ function ProblemsPage() {
         {!token ? <p className="muted">Demo mode: interactions open login CTA modal.</p> : null}
         {token && !selectedListId ? <p className="error">Select a list to load and save attempts.</p> : null}
       </Card>
+      <Modal open={showImport} title="Import from spreadsheet" onClose={() => { setShowImport(false); setImportStatus(null); }}>
+        <div className="stack-16" style={{ marginTop: 16 }}>
+          <p className="muted">Paste your spreadsheet data (tab-separated). Columns: Date, Difficulty, Problem, Link, Solved, Confidence, Attempts, Time/Space, Notes.</p>
+          <textarea
+            className="cc-input drawer-textarea"
+            style={{ minHeight: 200 }}
+            placeholder="Paste tab-separated data here..."
+            value={importText}
+            onChange={(e) => setImportText(e.target.value)}
+          />
+          {importStatus ? <p className={importStatus.startsWith('Done') ? 'muted' : 'error'}>{importStatus}</p> : null}
+          <div className="cc-modal-actions">
+            <Button onClick={() => void handleImport()} disabled={!importText.trim() || importStatus === 'Importing...'}>Import</Button>
+            <Button variant="ghost" onClick={() => { setShowImport(false); setImportStatus(null); }}>Cancel</Button>
+          </div>
+        </div>
+      </Modal>
       {authCtaModal}
     </section>
   );
