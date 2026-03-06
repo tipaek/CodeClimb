@@ -946,6 +946,8 @@ function ProblemsPage() {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [isCreatingList, setIsCreatingList] = useState(false);
+  const [creatingListName, setCreatingListName] = useState('');
   const [editorState, setEditorState] = useState<
     Record<
       number,
@@ -1227,6 +1229,42 @@ function ProblemsPage() {
     [categoryProgress, categoryStatusFilter, grouped],
   );
 
+  const expandAll = () => {
+    const next: Record<string, boolean> = {};
+    for (const [category] of visibleGroups) next[category] = true;
+    setExpandedCategories(next);
+  };
+
+  const collapseAll = () => {
+    const next: Record<string, boolean> = {};
+    for (const [category] of visibleGroups) next[category] = false;
+    setExpandedCategories(next);
+  };
+
+  const scrollToCategory = (category: string) => {
+    setExpandedCategories((prev) => ({ ...prev, [category]: true }));
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`category-${category.replace(/[^a-zA-Z0-9]/g, '-')}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
+  const createList = async () => {
+    if (!token) { openAuthCta(); return; }
+    const name = creatingListName.trim();
+    if (!name) return;
+    try {
+      const created = await api.createList(token, { name, templateVersion: 'neet250.v1' });
+      const loadedLists = await api.getLists(token);
+      setLists(loadedLists);
+      setCreatingListName('');
+      setIsCreatingList(false);
+      setSelectedListId(created.id);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create list');
+    }
+  };
+
   const scheduleSave = (problem: ProblemWithLatestAttempt, draft: UpsertAttemptRequest, options?: { immediate?: boolean; retry?: boolean }) => {
     if (!token || !selectedListId) {
       return;
@@ -1340,6 +1378,38 @@ function ProblemsPage() {
         <h1>Problems</h1>
         {token && selectedListId ? <Button variant="secondary" onClick={() => setShowImport(true)}>Import from spreadsheet</Button> : null}
       </div>
+      <div className="problems-layout">
+        <aside className="problems-sidebar">
+          <div className="sidebar-actions">
+            <Button variant="secondary" onClick={expandAll}>Expand all</Button>
+            <Button variant="secondary" onClick={collapseAll}>Collapse all</Button>
+            {token && !isCreatingList ? <Button variant="primary" onClick={() => setIsCreatingList(true)}>+ New list</Button> : null}
+            {isCreatingList ? (
+              <div className="create-list-inline">
+                <Input value={creatingListName} placeholder="List name" onChange={(e) => setCreatingListName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void createList(); }} />
+                <Button onClick={() => void createList()}>Create</Button>
+              </div>
+            ) : null}
+          </div>
+          <nav className="sidebar-nav">
+            <h3>Categories</h3>
+            <ul className="sidebar-nav-list">
+              {visibleGroups.map(([category, items]) => {
+                const stats = categoryProgress.get(category);
+                const isComplete = stats ? stats.solvedCount === stats.totalInCategory : false;
+                return (
+                  <li key={category}>
+                    <button type="button" className={`sidebar-nav-item${isComplete ? ' is-complete' : ''}`} onClick={() => scrollToCategory(category)}>
+                      <span>{category}</span>
+                      <span className="sidebar-nav-count">{stats?.solvedCount ?? 0}/{items.length}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        </aside>
+        <div className="problems-main">
       <Card>
         <div className="problems-toolbar">
           <label className="toolbar-control">
@@ -1390,9 +1460,9 @@ function ProblemsPage() {
             const solvedCount = categoryProgress.get(category)?.solvedCount ?? 0;
             const open = expandedCategories[category] ?? true;
             return (
-              <article className="category-card" key={category}>
-                <button type="button" className="category-header" onClick={() => setExpandedCategories((prev) => ({ ...prev, [category]: !open }))}>
-                  <span>{category}</span>
+              <article className="category-card" key={category} id={`category-${category.replace(/[^a-zA-Z0-9]/g, '-')}`}>
+                <button type="button" className={`category-header${open ? '' : ' is-collapsed'}`} onClick={() => setExpandedCategories((prev) => ({ ...prev, [category]: !open }))}>
+                  <span>{open ? '▾' : '▸'} {category}</span>
                   <span className="muted">{solvedCount}/{items.length} solved</span>
                 </button>
                 {open ? (
@@ -1564,9 +1634,11 @@ function ProblemsPage() {
         {!token ? <p className="muted">Demo mode: interactions open login CTA modal.</p> : null}
         {token && !selectedListId ? <p className="error">Select a list to load and save attempts.</p> : null}
       </Card>
+        </div>
+      </div>
       <Modal open={showImport} title="Import from spreadsheet" onClose={() => { setShowImport(false); setImportStatus(null); }}>
         <div className="stack-16" style={{ marginTop: 16 }}>
-          <p className="muted">Paste your spreadsheet data (tab-separated). Columns: Date, Difficulty, Problem, Link, Solved, Confidence, Attempts, Time/Space, Notes.</p>
+          <p className="muted">Select all cells in your spreadsheet (Ctrl+A / Cmd+A), copy (Ctrl+C / Cmd+C), and paste below (Ctrl+V / Cmd+V). Expected columns: Date | Difficulty | Problem | Link | Solved | Confidence | Attempts | Time/Space | Notes. Category header rows and non-matching problems are automatically skipped.</p>
           <textarea
             className="cc-input drawer-textarea"
             style={{ minHeight: 200 }}
