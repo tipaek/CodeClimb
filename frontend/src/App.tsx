@@ -946,6 +946,8 @@ function ProblemsPage() {
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [isCreatingList, setIsCreatingList] = useState(false);
+  const [creatingListName, setCreatingListName] = useState('');
   const [editorState, setEditorState] = useState<
     Record<
       number,
@@ -1334,13 +1336,90 @@ function ProblemsPage() {
     }));
   };
 
+  const expandAll = () => {
+    const next: Record<string, boolean> = {};
+    for (const [category] of visibleGroups) {
+      next[category] = true;
+    }
+    setExpandedCategories((prev) => ({ ...prev, ...next }));
+  };
+
+  const collapseAll = () => {
+    const next: Record<string, boolean> = {};
+    for (const [category] of visibleGroups) {
+      next[category] = false;
+    }
+    setExpandedCategories((prev) => ({ ...prev, ...next }));
+  };
+
+  const createListFromProblems = async () => {
+    if (!token) {
+      openAuthCta();
+      return;
+    }
+    const nextName = creatingListName.trim();
+    if (!nextName) return;
+    try {
+      setError(null);
+      const created = await api.createList(token, { name: nextName, templateVersion: 'neet250.v1' });
+      const loadedLists = await api.getLists(token);
+      setLists(loadedLists);
+      setSelectedListId(created.id);
+      setCreatingListName('');
+      setIsCreatingList(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to create list');
+    }
+  };
+
+  const scrollToCategory = (category: string) => {
+    setExpandedCategories((prev) => ({ ...prev, [category]: true }));
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`category-${category.replace(/[^a-zA-Z0-9]/g, '-')}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   return (
     <section className="stack-24 problems-page">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <h1>Problems</h1>
-        {token && selectedListId ? <Button variant="secondary" onClick={() => setShowImport(true)}>Import from spreadsheet</Button> : null}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {token ? <Button variant="secondary" onClick={() => setIsCreatingList(true)}>Create new list</Button> : null}
+          {token && selectedListId ? <Button variant="secondary" onClick={() => setShowImport(true)}>Import from spreadsheet</Button> : null}
+        </div>
       </div>
-      <Card>
+      {isCreatingList ? (
+        <div className="dashboard-create-list">
+          <Input
+            value={creatingListName}
+            placeholder="New list name"
+            onChange={(event) => setCreatingListName(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Enter') void createListFromProblems(); }}
+          />
+          <Button onClick={() => void createListFromProblems()}>Create</Button>
+          <Button variant="ghost" onClick={() => setIsCreatingList(false)}>Cancel</Button>
+        </div>
+      ) : null}
+      <div className="problems-layout">
+        <nav className="problems-sidebar">
+          <h3>Categories</h3>
+          <ul className="sidebar-nav">
+            {visibleGroups.map(([category]) => {
+              const stats = categoryProgress.get(category);
+              const isComplete = stats ? stats.solvedCount === stats.totalInCategory : false;
+              return (
+                <li key={category}>
+                  <button type="button" className={`sidebar-nav-item${isComplete ? ' is-complete' : ''}`} onClick={() => scrollToCategory(category)}>
+                    <span>{category}</span>
+                    <span className="sidebar-count">{stats ? `${stats.solvedCount}/${stats.totalInCategory}` : ''}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+        <Card>
         <div className="problems-toolbar">
           <label className="toolbar-control">
             <span className="toolbar-label">List</span>
@@ -1383,6 +1462,10 @@ function ProblemsPage() {
             </Select>
           </label>
         </div>
+        <div className="problems-bulk-actions">
+          <Button variant="ghost" onClick={expandAll}>Expand all</Button>
+          <Button variant="ghost" onClick={collapseAll}>Collapse all</Button>
+        </div>
         {loading ? <p className="muted">Loading problems…</p> : null}
         {error ? <p className="error">{error}</p> : null}
         <div className="problems-accordion">
@@ -1390,7 +1473,7 @@ function ProblemsPage() {
             const solvedCount = categoryProgress.get(category)?.solvedCount ?? 0;
             const open = expandedCategories[category] ?? true;
             return (
-              <article className="category-card" key={category}>
+              <article className="category-card" key={category} id={`category-${category.replace(/[^a-zA-Z0-9]/g, '-')}`}>
                 <button type="button" className="category-header" onClick={() => setExpandedCategories((prev) => ({ ...prev, [category]: !open }))}>
                   <span>{category}</span>
                   <span className="muted">{solvedCount}/{items.length} solved</span>
@@ -1564,6 +1647,7 @@ function ProblemsPage() {
         {!token ? <p className="muted">Demo mode: interactions open login CTA modal.</p> : null}
         {token && !selectedListId ? <p className="error">Select a list to load and save attempts.</p> : null}
       </Card>
+      </div>
       <Modal open={showImport} title="Import from spreadsheet" onClose={() => { setShowImport(false); setImportStatus(null); }}>
         <div className="stack-16" style={{ marginTop: 16 }}>
           <p className="muted">Paste your spreadsheet data (tab-separated). Columns: Date, Difficulty, Problem, Link, Solved, Confidence, Attempts, Time/Space, Notes.</p>

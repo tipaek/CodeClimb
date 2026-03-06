@@ -769,6 +769,74 @@ a:focus-visible {
   max-width: 1200px;
 }
 
+.problems-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: var(--space-16);
+  align-items: start;
+}
+
+.problems-sidebar {
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--surface-soft));
+  padding: 12px;
+  box-shadow: var(--shadow-soft);
+}
+
+.problems-sidebar h3 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.sidebar-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.sidebar-nav-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.sidebar-nav-item:hover {
+  background: color-mix(in srgb, var(--pill-bg) 60%, transparent);
+  color: var(--accent-strong);
+}
+
+.sidebar-nav-item .sidebar-count {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.sidebar-nav-item.is-complete .sidebar-count {
+  color: #4fa569;
+}
+
 .problems-toolbar {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -817,6 +885,12 @@ a:focus-visible {
   letter-spacing: 0.02em;
 }
 
+.problems-bulk-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: var(--space-16);
+}
+
 .problems-accordion {
   display: grid;
   gap: var(--space-16);
@@ -826,8 +900,9 @@ a:focus-visible {
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   border-radius: 20px;
   background: linear-gradient(165deg, color-mix(in srgb, var(--surface) 91%, #fff), color-mix(in srgb, var(--surface-soft) 84%, var(--surface)));
-  padding: var(--space-16);
+  padding: 0;
   box-shadow: var(--shadow-soft);
+  overflow: hidden;
 }
 
 :root[data-theme='fresh-peach'] .category-card {
@@ -851,12 +926,12 @@ a:focus-visible {
   align-items: center;
   border: 0;
   background: transparent;
-  padding: 0;
+  padding: var(--space-16);
   font: inherit;
   font-size: 18px;
   font-weight: 700;
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: 0;
   transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
@@ -866,9 +941,10 @@ a:focus-visible {
 }
 
 :root[data-theme='fresh-peach'] .category-header {
-  padding: 8px 10px;
-  margin: -8px -10px 0;
-  border: 1px solid transparent;
+  padding: var(--space-16);
+  margin: 0;
+  border: none;
+  border-bottom: 1px solid transparent;
 }
 
 :root[data-theme='fresh-peach'] .category-header:hover {
@@ -878,9 +954,10 @@ a:focus-visible {
 }
 
 :root[data-theme='wisteria-bloom'] .category-header {
-  padding: 8px 10px;
-  margin: -8px -10px 0;
-  border: 1px solid transparent;
+  padding: var(--space-16);
+  margin: 0;
+  border: none;
+  border-bottom: 1px solid transparent;
 }
 
 :root[data-theme='wisteria-bloom'] .category-header:hover {
@@ -890,9 +967,10 @@ a:focus-visible {
 }
 
 :root[data-theme='night-sands'] .category-header {
-  padding: 8px 10px;
-  margin: -8px -10px 0;
-  border: 1px solid transparent;
+  padding: var(--space-16);
+  margin: 0;
+  border: none;
+  border-bottom: 1px solid transparent;
 }
 
 :root[data-theme='night-sands'] .category-header > span:first-child {
@@ -905,7 +983,7 @@ a:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
 }
 
-.problem-list-stack { margin-top: var(--space-16); display: grid; gap: var(--space-16); }
+.problem-list-stack { padding: var(--space-16); padding-top: 0; display: grid; gap: var(--space-16); }
 
 .problem-row-card {
   border: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
@@ -1164,6 +1242,17 @@ a:focus-visible {
 @media (max-width: 980px) {
   .dashboard-layout {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 960px) {
+  .problems-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .problems-sidebar {
+    position: static;
+    max-height: none;
   }
 }
 
