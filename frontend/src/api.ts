@@ -1,10 +1,24 @@
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, AUTH_STORAGE_KEY } from './config';
 import type { Attempt, AuthResponse, CreateListRequest, Dashboard, ListItem, LoginRequest, ProblemWithLatestAttempt, SignupRequest, UpsertAttemptRequest } from './types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
   }
+}
+
+const onUnauthorizedCallbacks: Array<() => void> = [];
+
+export function onUnauthorized(callback: () => void): () => void {
+  onUnauthorizedCallbacks.push(callback);
+  return () => {
+    const index = onUnauthorizedCallbacks.indexOf(callback);
+    if (index >= 0) onUnauthorizedCallbacks.splice(index, 1);
+  };
+}
+
+function notifyUnauthorized() {
+  for (const cb of onUnauthorizedCallbacks) cb();
 }
 
 function joinApiUrl(path: string): string {
@@ -40,6 +54,10 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string |
     throw new ApiError('Failed to fetch API. In local dev set VITE_API_BASE_URL (for example http://localhost:8080).', 0);
   }
   if (!response.ok) {
+    if (response.status === 401 && token) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      notifyUnauthorized();
+    }
     const text = await response.text();
     try {
       const json = JSON.parse(text) as { message?: string };

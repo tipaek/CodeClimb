@@ -615,8 +615,28 @@ a:focus-visible {
 .mini-calendar-head {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   margin-bottom: var(--space-8);
+}
+
+.cal-nav-btn {
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text);
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.cal-nav-btn:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-soft));
 }
 
 .mini-calendar-grid {
@@ -666,7 +686,7 @@ a:focus-visible {
 }
 
 .up-next-header {
-  justify-content: center;
+  justify-content: space-between;
 }
 
 .up-next-stack {

@@ -1,4 +1,5 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { onUnauthorized } from './api';
 import { AUTH_STORAGE_KEY } from './config';
 
 interface AuthContextValue {
@@ -19,6 +20,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(AUTH_STORAGE_KEY);
     }
   };
+
+  useEffect(() => {
+    return onUnauthorized(() => {
+      setTokenState(null);
+    });
+  }, []);
 
   const value = useMemo(() => ({ token, setToken }), [token]);
 
