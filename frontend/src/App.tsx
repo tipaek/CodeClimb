@@ -1054,6 +1054,59 @@ function ProblemsPage() {
     }
   }, [sourceProblems.length, searchParams]);
 
+  const categoryProgress = useMemo(() => {
+    const stats = new Map<string, { solvedCount: number; totalInCategory: number }>();
+    for (const problem of sourceProblems) {
+      const stat = stats.get(problem.category) ?? { solvedCount: 0, totalInCategory: 0 };
+      stat.totalInCategory += 1;
+      if (getProblemSolved(problem, editorState[problem.neet250Id]?.draft)) {
+        stat.solvedCount += 1;
+      }
+      stats.set(problem.category, stat);
+    }
+    return stats;
+  }, [editorState, sourceProblems]);
+
+  const filteredProblems = useMemo(
+    () =>
+      sourceProblems.filter((problem) => {
+        if (categoryFilter !== 'all' && problem.category !== categoryFilter) {
+          return false;
+        }
+        if (difficultyFilter !== 'all' && problem.difficulty !== difficultyFilter) {
+          return false;
+        }
+        return true;
+      }),
+    [categoryFilter, difficultyFilter, sourceProblems],
+  );
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, ProblemWithLatestAttempt[]>();
+    for (const problem of filteredProblems) {
+      const categoryProblems = map.get(problem.category) ?? [];
+      categoryProblems.push(problem);
+      map.set(problem.category, categoryProblems);
+    }
+    return Array.from(map.entries());
+  }, [filteredProblems]);
+
+  const visibleGroups = useMemo(
+    () =>
+      grouped.filter(([category]) => {
+        if (categoryStatusFilter === 'all') {
+          return true;
+        }
+        const stats = categoryProgress.get(category);
+        if (!stats) {
+          return false;
+        }
+        const isCompleted = stats.solvedCount === stats.totalInCategory;
+        return categoryStatusFilter === 'completed' ? isCompleted : !isCompleted;
+      }),
+    [categoryProgress, categoryStatusFilter, grouped],
+  );
+
   // Track which category is currently in view for the sidebar indicator
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -1201,59 +1254,6 @@ function ProblemsPage() {
   };
 
   const categories = useMemo(() => Array.from(new Set(sourceProblems.map((problem) => problem.category))).sort(), [sourceProblems]);
-
-  const categoryProgress = useMemo(() => {
-    const stats = new Map<string, { solvedCount: number; totalInCategory: number }>();
-    for (const problem of sourceProblems) {
-      const stat = stats.get(problem.category) ?? { solvedCount: 0, totalInCategory: 0 };
-      stat.totalInCategory += 1;
-      if (getProblemSolved(problem, editorState[problem.neet250Id]?.draft)) {
-        stat.solvedCount += 1;
-      }
-      stats.set(problem.category, stat);
-    }
-    return stats;
-  }, [editorState, sourceProblems]);
-
-  const filteredProblems = useMemo(
-    () =>
-      sourceProblems.filter((problem) => {
-        if (categoryFilter !== 'all' && problem.category !== categoryFilter) {
-          return false;
-        }
-        if (difficultyFilter !== 'all' && problem.difficulty !== difficultyFilter) {
-          return false;
-        }
-        return true;
-      }),
-    [categoryFilter, difficultyFilter, sourceProblems],
-  );
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, ProblemWithLatestAttempt[]>();
-    for (const problem of filteredProblems) {
-      const categoryProblems = map.get(problem.category) ?? [];
-      categoryProblems.push(problem);
-      map.set(problem.category, categoryProblems);
-    }
-    return Array.from(map.entries());
-  }, [filteredProblems]);
-
-  const visibleGroups = useMemo(
-    () =>
-      grouped.filter(([category]) => {
-        if (categoryStatusFilter === 'all') {
-          return true;
-        }
-        const stats = categoryProgress.get(category);
-        if (!stats) {
-          return false;
-        }
-        const isCompleted = stats.solvedCount === stats.totalInCategory;
-        return categoryStatusFilter === 'completed' ? isCompleted : !isCompleted;
-      }),
-    [categoryProgress, categoryStatusFilter, grouped],
-  );
 
   const scheduleSave = (problem: ProblemWithLatestAttempt, draft: UpsertAttemptRequest, options?: { immediate?: boolean; retry?: boolean }) => {
     if (!token || !selectedListId) {
