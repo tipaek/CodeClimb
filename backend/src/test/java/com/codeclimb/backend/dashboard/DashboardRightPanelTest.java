@@ -73,6 +73,7 @@ class DashboardRightPanelTest {
         assertThat(dashboard.at("/rightPanel/latestSolved")).hasSize(0);
         assertThat(dashboard.at("/rightPanel/nextUnsolved")).hasSize(4);
         assertThat(dashboard.at("/rightPanel/nextUnsolved/0/orderIndex").asInt()).isEqualTo(1);
+        assertThat(dashboard.at("/rightPanel/nextUnsolved/0/leetcodeSlug").asText()).isEqualTo("problem-1");
         assertThat(dashboard.at("/rightPanel/nextUnsolved/1/orderIndex").asInt()).isEqualTo(2);
         assertThat(dashboard.at("/rightPanel/nextUnsolved/2/orderIndex").asInt()).isEqualTo(3);
         assertThat(dashboard.at("/rightPanel/nextUnsolved/3/orderIndex").asInt()).isEqualTo(4);

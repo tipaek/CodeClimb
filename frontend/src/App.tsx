@@ -200,7 +200,10 @@ function normalizeCards(rawCards: unknown): DashboardCard[] {
         title,
         category: typeof source.category === 'string' ? source.category : 'General',
         orderIndex: typeof source.order_index === 'number' ? source.order_index : typeof source.orderIndex === 'number' ? source.orderIndex : 0,
-        leetcodeUrl: typeof source.leetcode_url === 'string' ? source.leetcode_url : '#',
+        leetcodeUrl: typeof source.leetcode_url === 'string' ? source.leetcode_url
+          : typeof source.leetcodeSlug === 'string' ? `https://leetcode.com/problems/${source.leetcodeSlug}/`
+          : typeof source.leetcode_slug === 'string' ? `https://leetcode.com/problems/${source.leetcode_slug}/`
+          : '#',
         latestAttempt: normalizeAttempt(source.latestAttempt),
       };
     })

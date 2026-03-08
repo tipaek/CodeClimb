@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class DashboardDtos {
-    public record ProgressItem(Integer neet250Id, Integer orderIndex, String title, String category) {}
+    public record ProgressItem(Integer neet250Id, Integer orderIndex, String title, String category, String leetcodeSlug) {}
     public record CategorySolvedStats(String category, long solvedCount, long totalInCategory) {}
     public record SolvedCounts(long totalSolved, List<CategorySolvedStats> byCategory) {}
     public record RightPanel(List<ProgressItem> latestSolved, List<ProgressItem> nextUnsolved) {}

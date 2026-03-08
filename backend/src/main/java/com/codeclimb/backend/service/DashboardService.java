@@ -101,7 +101,7 @@ public class DashboardService {
             """ + NON_EMPTY_ATTEMPT_PREDICATE + scopeAttemptCondition, userId, scopedListId));
 
         DashboardDtos.ProgressItem farthestProblem = toFirstProgress(query("""
-            select p.neet250_id, p.order_index, p.title, p.category
+            select p.neet250_id, p.order_index, p.title, p.category, p.leetcode_slug
             from problems p
             where p.template_version = :templateVersion
               and exists (
@@ -121,7 +121,7 @@ public class DashboardService {
         String farthestCategory = farthestProblem == null ? null : farthestProblem.category();
 
         List<DashboardDtos.ProgressItem> latestSolved = toProgressList(query("""
-            select p.neet250_id, p.order_index, p.title, p.category
+            select p.neet250_id, p.order_index, p.title, p.category, p.leetcode_slug
             from problems p
             where p.template_version = :templateVersion
               and exists (
@@ -138,7 +138,7 @@ public class DashboardService {
             """, userId, scopedListId, templateVersion));
 
         List<DashboardDtos.ProgressItem> nextUnsolved = toProgressList(query("""
-            select p.neet250_id, p.order_index, p.title, p.category
+            select p.neet250_id, p.order_index, p.title, p.category, p.leetcode_slug
             from problems p
             where p.template_version = :templateVersion
               and p.order_index > :farthestOrder
@@ -313,7 +313,7 @@ public class DashboardService {
     }
 
     private DashboardDtos.ProgressItem toProgress(Object[] row) {
-        return new DashboardDtos.ProgressItem(((Number) row[0]).intValue(), ((Number) row[1]).intValue(), (String) row[2], (String) row[3]);
+        return new DashboardDtos.ProgressItem(((Number) row[0]).intValue(), ((Number) row[1]).intValue(), (String) row[2], (String) row[3], (String) row[4]);
     }
 
     private List<DashboardDtos.CategorySolvedStats> toCategorySolvedStats(List<?> rows) {
