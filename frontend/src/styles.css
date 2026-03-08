@@ -1276,4 +1276,96 @@ a:focus-visible {
   }
 
   .history-actions { justify-content: flex-start; }
+
+  .spreadsheet-table { font-size: 13px; }
+  .spreadsheet-table th,
+  .spreadsheet-table td { padding: 6px 8px; }
+}
+
+/* Sidebar active indicator & progress dots */
+.sidebar-nav-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sidebar-progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 2px solid var(--border);
+  background: transparent;
+  flex-shrink: 0;
+}
+
+.sidebar-progress-dot.is-partial {
+  border-color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 40%, transparent);
+}
+
+.sidebar-progress-dot.is-complete {
+  border-color: var(--success);
+  background: var(--success);
+}
+
+.sidebar-nav-item.is-active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent-strong);
+  font-weight: 700;
+  border-left: 3px solid var(--accent);
+  padding-left: 5px;
+}
+
+.sidebar-nav-item.is-active .sidebar-count {
+  color: var(--accent);
+}
+
+/* Spreadsheet view */
+.spreadsheet-view {
+  overflow-x: auto;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  border-radius: 16px;
+  background: var(--surface);
+}
+
+.spreadsheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.spreadsheet-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-bottom: 2px solid var(--border);
+  background: color-mix(in srgb, var(--surface-soft) 60%, var(--surface));
+  white-space: nowrap;
+}
+
+.spreadsheet-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  vertical-align: top;
+}
+
+.spreadsheet-table tbody tr:hover {
+  background: color-mix(in srgb, var(--pill-bg) 40%, transparent);
+}
+
+.spreadsheet-table tbody tr.is-solved {
+  background: color-mix(in srgb, var(--success) 6%, transparent);
+}
+
+.spreadsheet-notes {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 13px;
 }

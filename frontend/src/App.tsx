@@ -806,7 +806,7 @@ function DashboardPage() {
               </div>
               <div className="mini-stat-tile">
                 <span className="mini-stat-label">Average streak:</span>
-                <span className="mini-stat-value">{token ? dashboard?.streakAverage ?? 0 : 3.1}</span>
+                <span className="mini-stat-value">{token ? Number(dashboard?.streakAverage ?? 0).toFixed(2) : '3.10'}</span>
               </div>
               <div className="mini-stat-tile">
                 <span className="mini-stat-label">Problems solved:</span>
@@ -842,7 +842,7 @@ function DashboardPage() {
               const handleCardClick = (e: React.MouseEvent) => {
                 if ((e.target as HTMLElement).closest('button, select, input, a')) return;
                 if (!token) { openAuthCta(); return; }
-                navigate(`/problems?category=${encodeURIComponent(card.category)}&problem=${card.neet250Id}`);
+                openAttemptDetail(card);
               };
               return (
                 <article key={card.neet250Id} className="up-next-card" onClick={handleCardClick} style={{ cursor: 'pointer' }}>
@@ -856,10 +856,10 @@ function DashboardPage() {
                       ✓
                     </button>
                     <div>
-                      <h3>{card.title}</h3>
+                      <h3><a href={card.leetcodeUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{card.title}</a></h3>
                       <p className="muted">{card.category}</p>
                     </div>
-                    <Pill>{`#${card.orderIndex || '—'}`}</Pill>
+                    <Pill><Link to={`/problems?category=${encodeURIComponent(card.category)}&problem=${card.neet250Id}`} onClick={(e) => e.stopPropagation()} style={{ color: 'inherit', textDecoration: 'none' }}>{`#${card.orderIndex || '—'}`}</Link></Pill>
                   </div>
                   <div className="up-next-actions">
                     <div>
@@ -875,7 +875,6 @@ function DashboardPage() {
                         </button>
                       ) : null}
                     </div>
-                    <Button className="up-next-attempt-button" variant="ghost" onClick={(e) => { e.stopPropagation(); if (!token) { openAuthCta(); return; } openAttemptDetail(card); }}>Add attempt</Button>
                   </div>
                 </article>
               );
@@ -945,6 +944,8 @@ function ProblemsPage() {
   const [expandedProblems, setExpandedProblems] = useState<Record<number, boolean>>({});
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'accordion' | 'spreadsheet'>('accordion');
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [isCreatingList, setIsCreatingList] = useState(false);
   const [creatingListName, setCreatingListName] = useState('');
@@ -1052,6 +1053,84 @@ function ProblemsPage() {
       });
     }
   }, [sourceProblems.length, searchParams]);
+
+  const categoryProgress = useMemo(() => {
+    const stats = new Map<string, { solvedCount: number; totalInCategory: number }>();
+    for (const problem of sourceProblems) {
+      const stat = stats.get(problem.category) ?? { solvedCount: 0, totalInCategory: 0 };
+      stat.totalInCategory += 1;
+      if (getProblemSolved(problem, editorState[problem.neet250Id]?.draft)) {
+        stat.solvedCount += 1;
+      }
+      stats.set(problem.category, stat);
+    }
+    return stats;
+  }, [editorState, sourceProblems]);
+
+  const filteredProblems = useMemo(
+    () =>
+      sourceProblems.filter((problem) => {
+        if (categoryFilter !== 'all' && problem.category !== categoryFilter) {
+          return false;
+        }
+        if (difficultyFilter !== 'all' && problem.difficulty !== difficultyFilter) {
+          return false;
+        }
+        return true;
+      }),
+    [categoryFilter, difficultyFilter, sourceProblems],
+  );
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, ProblemWithLatestAttempt[]>();
+    for (const problem of filteredProblems) {
+      const categoryProblems = map.get(problem.category) ?? [];
+      categoryProblems.push(problem);
+      map.set(problem.category, categoryProblems);
+    }
+    return Array.from(map.entries());
+  }, [filteredProblems]);
+
+  const visibleGroups = useMemo(
+    () =>
+      grouped.filter(([category]) => {
+        if (categoryStatusFilter === 'all') {
+          return true;
+        }
+        const stats = categoryProgress.get(category);
+        if (!stats) {
+          return false;
+        }
+        const isCompleted = stats.solvedCount === stats.totalInCategory;
+        return categoryStatusFilter === 'completed' ? isCompleted : !isCompleted;
+      }),
+    [categoryProgress, categoryStatusFilter, grouped],
+  );
+
+  // Track which category is currently in view for the sidebar indicator
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const id = entry.target.id;
+            const match = visibleGroups.find(
+              ([cat]) => cat.replace(/[^a-zA-Z0-9]/g, '-') === id.replace('category-', ''),
+            );
+            if (match) {
+              setActiveCategory(match[0]);
+            }
+          }
+        }
+      },
+      { rootMargin: '-20% 0px -60% 0px', threshold: 0 },
+    );
+    for (const [category] of visibleGroups) {
+      const el = document.getElementById(`category-${category.replace(/[^a-zA-Z0-9]/g, '-')}`);
+      if (el) observer.observe(el);
+    }
+    return () => observer.disconnect();
+  }, [visibleGroups]);
 
   const handleImport = async () => {
     if (!token || !selectedListId || !importText.trim()) return;
@@ -1175,59 +1254,6 @@ function ProblemsPage() {
   };
 
   const categories = useMemo(() => Array.from(new Set(sourceProblems.map((problem) => problem.category))).sort(), [sourceProblems]);
-
-  const categoryProgress = useMemo(() => {
-    const stats = new Map<string, { solvedCount: number; totalInCategory: number }>();
-    for (const problem of sourceProblems) {
-      const stat = stats.get(problem.category) ?? { solvedCount: 0, totalInCategory: 0 };
-      stat.totalInCategory += 1;
-      if (getProblemSolved(problem, editorState[problem.neet250Id]?.draft)) {
-        stat.solvedCount += 1;
-      }
-      stats.set(problem.category, stat);
-    }
-    return stats;
-  }, [editorState, sourceProblems]);
-
-  const filteredProblems = useMemo(
-    () =>
-      sourceProblems.filter((problem) => {
-        if (categoryFilter !== 'all' && problem.category !== categoryFilter) {
-          return false;
-        }
-        if (difficultyFilter !== 'all' && problem.difficulty !== difficultyFilter) {
-          return false;
-        }
-        return true;
-      }),
-    [categoryFilter, difficultyFilter, sourceProblems],
-  );
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, ProblemWithLatestAttempt[]>();
-    for (const problem of filteredProblems) {
-      const categoryProblems = map.get(problem.category) ?? [];
-      categoryProblems.push(problem);
-      map.set(problem.category, categoryProblems);
-    }
-    return Array.from(map.entries());
-  }, [filteredProblems]);
-
-  const visibleGroups = useMemo(
-    () =>
-      grouped.filter(([category]) => {
-        if (categoryStatusFilter === 'all') {
-          return true;
-        }
-        const stats = categoryProgress.get(category);
-        if (!stats) {
-          return false;
-        }
-        const isCompleted = stats.solvedCount === stats.totalInCategory;
-        return categoryStatusFilter === 'completed' ? isCompleted : !isCompleted;
-      }),
-    [categoryProgress, categoryStatusFilter, grouped],
-  );
 
   const scheduleSave = (problem: ProblemWithLatestAttempt, draft: UpsertAttemptRequest, options?: { immediate?: boolean; retry?: boolean }) => {
     if (!token || !selectedListId) {
@@ -1410,8 +1436,11 @@ function ProblemsPage() {
               const isComplete = stats ? stats.solvedCount === stats.totalInCategory : false;
               return (
                 <li key={category}>
-                  <button type="button" className={`sidebar-nav-item${isComplete ? ' is-complete' : ''}`} onClick={() => scrollToCategory(category)}>
-                    <span>{category}</span>
+                  <button type="button" className={`sidebar-nav-item${isComplete ? ' is-complete' : ''}${activeCategory === category ? ' is-active' : ''}`} onClick={() => scrollToCategory(category)}>
+                    <span className="sidebar-nav-label">
+                      <span className={`sidebar-progress-dot${isComplete ? ' is-complete' : stats && stats.solvedCount > 0 ? ' is-partial' : ''}`} />
+                      {category}
+                    </span>
                     <span className="sidebar-count">{stats ? `${stats.solvedCount}/${stats.totalInCategory}` : ''}</span>
                   </button>
                 </li>
@@ -1463,15 +1492,62 @@ function ProblemsPage() {
           </label>
         </div>
         <div className="problems-bulk-actions">
-          <Button variant="ghost" onClick={expandAll}>Expand all</Button>
-          <Button variant="ghost" onClick={collapseAll}>Collapse all</Button>
+          {viewMode === 'accordion' ? (
+            <>
+              <Button variant="ghost" onClick={expandAll}>Expand all</Button>
+              <Button variant="ghost" onClick={collapseAll}>Collapse all</Button>
+            </>
+          ) : null}
+          <Button variant={viewMode === 'accordion' ? 'secondary' : 'ghost'} onClick={() => setViewMode(viewMode === 'accordion' ? 'spreadsheet' : 'accordion')}>
+            {viewMode === 'accordion' ? 'Spreadsheet view' : 'Card view'}
+          </Button>
         </div>
         {loading ? <p className="muted">Loading problems…</p> : null}
         {error ? <p className="error">{error}</p> : null}
-        <div className="problems-accordion">
+        {viewMode === 'spreadsheet' ? (
+          <div className="spreadsheet-view">
+            <table className="spreadsheet-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Problem</th>
+                  <th>Difficulty</th>
+                  <th>Time</th>
+                  <th>Space</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredProblems.map((problem) => {
+                  const state = editorState[problem.neet250Id];
+                  return (
+                    <tr key={problem.neet250Id} className={state?.draft.solved ? 'is-solved' : ''}>
+                      <td>{problem.category}</td>
+                      <td>
+                        <a
+                          href={`https://leetcode.com/problems/${problem.leetcodeSlug}/`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="problem-link"
+                        >
+                          {problem.title}
+                        </a>
+                      </td>
+                      <td><span className={`difficulty-pill difficulty-pill--${problem.difficulty.toLowerCase()}`}>{problem.difficulty}</span></td>
+                      <td>{state?.draft.timeComplexity || '—'}</td>
+                      <td>{state?.draft.spaceComplexity || '—'}</td>
+                      <td className="spreadsheet-notes">{state?.draft.notes || '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+        <div className="problems-accordion" style={{ display: viewMode === 'accordion' ? undefined : 'none' }}>
           {visibleGroups.map(([category, items]) => {
             const solvedCount = categoryProgress.get(category)?.solvedCount ?? 0;
-            const open = expandedCategories[category] ?? true;
+            const open = expandedCategories[category] ?? false;
             return (
               <article className="category-card" key={category} id={`category-${category.replace(/[^a-zA-Z0-9]/g, '-')}`}>
                 <button type="button" className="category-header" onClick={() => setExpandedCategories((prev) => ({ ...prev, [category]: !open }))}>
