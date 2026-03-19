@@ -30,7 +30,20 @@ export function isEmptyAttemptPayload(request: UpsertAttemptRequest): boolean {
   );
 }
 
-const COMPLEXITY_PRESETS = ['O(1)', 'O(log n)', 'O(n)', 'O(n log n)', 'O(n^2)', 'O(2^n)', 'O(n!)', 'O(2^n*n)'];
+export const COMPLEXITY_PRESETS = [
+  'O(1)',
+  'O(log n)',
+  'O(√n)',
+  'O(n)',
+  'O(n log n)',
+  'O(n^2)',
+  'O(n^3)',
+  'O(m*n)',
+  'O(m+n)',
+  'O(2^n)',
+  'O(n!)',
+  'O(2^n*n)',
+];
 
 export function normalizeComplexity(raw: string): string {
   const trimmed = raw.trim();
@@ -43,6 +56,10 @@ export function normalizeComplexity(raw: string): string {
     'o(1)': 'O(1)',
     'logn': 'O(log n)',
     'o(logn)': 'O(log n)',
+    'sqrtn': 'O(√n)',
+    'o(sqrtn)': 'O(√n)',
+    'o(√n)': 'O(√n)',
+    '√n': 'O(√n)',
     'n': 'O(n)',
     'o(n)': 'O(n)',
     'nlogn': 'O(n log n)',
@@ -51,6 +68,15 @@ export function normalizeComplexity(raw: string): string {
     'n^2': 'O(n^2)',
     'n2': 'O(n^2)',
     'o(n^2)': 'O(n^2)',
+    'n^3': 'O(n^3)',
+    'n3': 'O(n^3)',
+    'o(n^3)': 'O(n^3)',
+    'mn': 'O(m*n)',
+    'o(mn)': 'O(m*n)',
+    'nm': 'O(m*n)',
+    'o(nm)': 'O(m*n)',
+    'm+n': 'O(m+n)',
+    'o(m+n)': 'O(m+n)',
     '2^n': 'O(2^n)',
     'o(2^n)': 'O(2^n)',
     'n!': 'O(n!)',
