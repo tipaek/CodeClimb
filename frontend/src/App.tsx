@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState, useCallback, type FormEvent, type
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api, ApiError } from './api';
 import { useAuth } from './auth';
-import { EMPTY_ATTEMPT, getComplexityOptions, isEmptyAttemptPayload, normalizeComplexity } from './attempts';
-import { Button, Card, Input, Pill, Select, Modal } from './components/primitives';
+import { COMPLEXITY_PRESETS, EMPTY_ATTEMPT, getComplexityOptions, isEmptyAttemptPayload, normalizeComplexity } from './attempts';
+import { Button, Card, ComboBox, Input, Pill, Select, Modal } from './components/primitives';
 import { useAuthCtaModal } from './hooks/useAuthCtaModal';
 import { THEME_OPTIONS, useTheme } from './theme';
 import type { Attempt, Dashboard, ListItem, ProblemWithLatestAttempt, UpsertAttemptRequest } from './types';
@@ -272,8 +272,10 @@ function getConfidenceTone(confidence: string | null | undefined): 'low' | 'medi
 
 function getComplexityTone(value: string | null | undefined): 'fast' | 'moderate' | 'slow' | 'unset' {
   if (!value) return 'unset';
-  if (value === 'O(1)' || value === 'O(log n)' || value === 'O(n)') return 'fast';
-  if (value === 'O(n log n)' || value === 'O(n^2)') return 'moderate';
+  const fast = ['O(1)', 'O(log n)', 'O(√n)', 'O(n)'];
+  const moderate = ['O(n log n)', 'O(n^2)', 'O(m*n)', 'O(n*m)', 'O(m+n)'];
+  if (fast.includes(value)) return 'fast';
+  if (moderate.includes(value)) return 'moderate';
   return 'slow';
 }
 
@@ -893,20 +895,26 @@ function DashboardPage() {
             <span className="toolbar-label">Time to solve (minutes)</span>
             <Input type="number" min="0" value={attemptDetailDraft.timeMinutes ?? ''} onChange={(e) => setAttemptDetailDraft((d) => ({ ...d, timeMinutes: e.target.value ? Number(e.target.value) : null }))} />
           </label>
-          <label className="drawer-field">
+          <div className="drawer-field">
             <span className="toolbar-label">Time complexity</span>
-            <Select className="compact-select" value={attemptDetailDraft.timeComplexity ?? ''} onChange={(e) => setAttemptDetailDraft((d) => ({ ...d, timeComplexity: e.target.value || null }))}>
-              <option value="">Select complexity</option>
-              {getComplexityOptions(attemptDetailDraft.timeComplexity).map((o) => <option key={`t-${o}`} value={o}>{o}</option>)}
-            </Select>
-          </label>
-          <label className="drawer-field">
+            <ComboBox
+              className={`complexity-combobox--${getComplexityTone(attemptDetailDraft.timeComplexity)}`}
+              options={getComplexityOptions(attemptDetailDraft.timeComplexity)}
+              value={attemptDetailDraft.timeComplexity ?? ''}
+              placeholder="Select complexity"
+              onChange={(v) => setAttemptDetailDraft((d) => ({ ...d, timeComplexity: v ? normalizeComplexity(v) : null }))}
+            />
+          </div>
+          <div className="drawer-field">
             <span className="toolbar-label">Space complexity</span>
-            <Select className="compact-select" value={attemptDetailDraft.spaceComplexity ?? ''} onChange={(e) => setAttemptDetailDraft((d) => ({ ...d, spaceComplexity: e.target.value || null }))}>
-              <option value="">Select complexity</option>
-              {getComplexityOptions(attemptDetailDraft.spaceComplexity).map((o) => <option key={`s-${o}`} value={o}>{o}</option>)}
-            </Select>
-          </label>
+            <ComboBox
+              className={`complexity-combobox--${getComplexityTone(attemptDetailDraft.spaceComplexity)}`}
+              options={getComplexityOptions(attemptDetailDraft.spaceComplexity)}
+              value={attemptDetailDraft.spaceComplexity ?? ''}
+              placeholder="Select complexity"
+              onChange={(v) => setAttemptDetailDraft((d) => ({ ...d, spaceComplexity: v ? normalizeComplexity(v) : null }))}
+            />
+          </div>
           <label className="drawer-field">
             <span className="toolbar-label">Confidence</span>
             <Select className="compact-select" value={attemptDetailDraft.confidence ?? ''} onChange={(e) => setAttemptDetailDraft((d) => ({ ...d, confidence: e.target.value || null }))}>
@@ -1638,28 +1646,26 @@ function ProblemsPage() {
                                     <option value="HIGH">High</option>
                                   </Select>
                                 </label>
-                                <label className="drawer-field">
+                                <div className="drawer-field">
                                   <span className="toolbar-label">Time complexity</span>
-                                  <Select
-                                    className={`compact-select complexity-select complexity-select--${getComplexityTone(state.draft.timeComplexity)}`}
+                                  <ComboBox
+                                    className={`complexity-combobox--${getComplexityTone(state.draft.timeComplexity)}`}
+                                    options={timeComplexityOptions}
                                     value={state.draft.timeComplexity ?? ''}
-                                    onChange={(event) => updateDraft(problem, { timeComplexity: event.target.value || null })}
-                                  >
-                                    <option value="">Select complexity</option>
-                                    {timeComplexityOptions.map((option) => <option key={`time-${option}`} value={option}>{option}</option>)}
-                                  </Select>
-                                </label>
-                                <label className="drawer-field">
+                                    placeholder="Select complexity"
+                                    onChange={(v) => updateDraft(problem, { timeComplexity: v ? normalizeComplexity(v) : null })}
+                                  />
+                                </div>
+                                <div className="drawer-field">
                                   <span className="toolbar-label">Space complexity</span>
-                                  <Select
-                                    className={`compact-select complexity-select complexity-select--${getComplexityTone(state.draft.spaceComplexity)}`}
+                                  <ComboBox
+                                    className={`complexity-combobox--${getComplexityTone(state.draft.spaceComplexity)}`}
+                                    options={spaceComplexityOptions}
                                     value={state.draft.spaceComplexity ?? ''}
-                                    onChange={(event) => updateDraft(problem, { spaceComplexity: event.target.value || null })}
-                                  >
-                                    <option value="">Select complexity</option>
-                                    {spaceComplexityOptions.map((option) => <option key={`space-${option}`} value={option}>{option}</option>)}
-                                  </Select>
-                                </label>
+                                    placeholder="Select complexity"
+                                    onChange={(v) => updateDraft(problem, { spaceComplexity: v ? normalizeComplexity(v) : null })}
+                                  />
+                                </div>
                                 <textarea className="cc-input drawer-full drawer-textarea" placeholder="Notes" value={state.draft.notes ?? ''} onChange={(event) => updateDraft(problem, { notes: event.target.value || null })} />
                               </div>
                               <div className="attempts-stepper">

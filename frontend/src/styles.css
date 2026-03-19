@@ -1164,6 +1164,105 @@ a:focus-visible {
   padding-bottom: 8px;
 }
 
+/* ComboBox */
+.cc-combobox {
+  position: relative;
+  width: 100%;
+}
+
+.cc-combobox__input {
+  width: 100%;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13px;
+  padding: 8px 28px 8px 12px;
+  min-height: 38px;
+  color: inherit;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.cc-combobox__input:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.cc-combobox__input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--focus) 28%, transparent);
+  background: var(--surface);
+}
+
+.cc-combobox__input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.cc-combobox__clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 16px;
+  padding: 2px 6px;
+  line-height: 1;
+  border-radius: 4px;
+}
+
+.cc-combobox__clear:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.cc-combobox__list {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  box-shadow: 0 4px 16px color-mix(in srgb, #000 12%, transparent);
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+}
+
+.cc-combobox__option {
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.cc-combobox__option--highlight {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+
+.cc-combobox__option--selected {
+  font-weight: 600;
+}
+
+.cc-combobox__empty {
+  padding: 6px 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Complexity combobox tone variants */
+.complexity-combobox--fast .cc-combobox__input { background: color-mix(in srgb, var(--success) 12%, var(--surface)); border-color: color-mix(in srgb, var(--success) 32%, var(--border)); color: color-mix(in srgb, var(--success) 76%, #204a33); }
+.complexity-combobox--moderate .cc-combobox__input { background: color-mix(in srgb, var(--warning) 14%, var(--surface)); border-color: color-mix(in srgb, var(--warning) 34%, var(--border)); color: color-mix(in srgb, var(--warning) 76%, #5c3a0f); }
+.complexity-combobox--slow .cc-combobox__input { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); border-color: color-mix(in srgb, var(--danger) 32%, var(--border)); color: color-mix(in srgb, var(--danger) 76%, #5b1d28); }
+
 .confidence-select--low { background: color-mix(in srgb, var(--danger) 12%, var(--surface)); border-color: color-mix(in srgb, var(--danger) 34%, var(--border)); color: color-mix(in srgb, var(--danger) 74%, #5b1d28); }
 .confidence-select--medium { background: color-mix(in srgb, var(--warning) 14%, var(--surface)); border-color: color-mix(in srgb, var(--warning) 34%, var(--border)); color: color-mix(in srgb, var(--warning) 76%, #5c3a0f); }
 .confidence-select--high { background: color-mix(in srgb, var(--success) 14%, var(--surface)); border-color: color-mix(in srgb, var(--success) 34%, var(--border)); color: color-mix(in srgb, var(--success) 76%, #204a33); }
